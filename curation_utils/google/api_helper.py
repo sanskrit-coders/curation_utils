@@ -8,6 +8,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 
+
 def perform_oauth(client_secrets_file, scopes, token_file_path=None):
     """Do interactive oauth."""
     flow = InstalledAppFlow.from_client_secrets_file(client_secrets_file, scopes)
@@ -26,7 +27,7 @@ def perform_oauth(client_secrets_file, scopes, token_file_path=None):
         # storage.put(credentials=credentials) fails with 'Credentials' object has no attribute 'to_json'. That's because google.oauth2 package is completely different from oauth2client
 
 
-def get_service_from_token_file_path(token_file_path):
+def get_credentials_from_token_file_path(token_file_path):
     """Authenticate and get api service object.
     
     :param token_file_path: A json file containing an access token (from a prior successful oauth). 
@@ -63,11 +64,11 @@ def get_credentials(service_account_file=None, token_file_path=None, client_secr
     else:
         # Access Token file is the result of oauth. If it exists, we might avoid having to do another oauth. 
         if token_file_path is not None:
-            credentials = get_service_from_token_file_path(token_file_path)
+            credentials = get_credentials_from_token_file_path(token_file_path)
         if credentials is None:
             assert client_secrets_file is not None and scopes is not None 
             if perform_oauth(scopes=scopes, token_file_path=token_file_path, client_secrets_file=client_secrets_file):
-                credentials = get_service_from_token_file_path(token_file_path)
+                credentials = get_credentials_from_token_file_path(token_file_path)
                 logging.info("Logged in successfully with oauth.")
             else:
                 logging.error("Login failure!")
