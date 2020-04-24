@@ -22,7 +22,8 @@ def get_sheet(spreadhsheet_id, worksheet_name, google_key):
 
     :param spreadhsheet_id: 
     :param worksheet_name: 
-    :param google_key: 
+    :param google_key: Path to a json file which can be obtained from https://console.cloud.google.com/iam-admin/serviceaccounts (create a project, generate a key via "Actions" column.).
+
     :return: 
     """
     scopes = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']

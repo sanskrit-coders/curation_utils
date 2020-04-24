@@ -14,8 +14,14 @@ logging.basicConfig(
 )
 logging.getLogger('oauth2client').setLevel(logging.INFO)
 
+
 class DriveClient(object):
     def __init__(self, google_key='/home/vvasuki/sysconf/kunchikA/google/sanskritnlp/service_account_key.json'):
+        """ Interact with Google Drive via this client.
+        
+        :param google_key: Path to a json file which can be obtained from https://console.cloud.google.com/iam-admin/serviceaccounts (create a project, generate a key via "Actions" column.).
+
+        """
         scopes = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         creds = ServiceAccountCredentials.from_json_keyfile_name(google_key, scopes)
         self.service = discovery.build('drive', 'v3', credentials=creds, cache_discovery=False)
