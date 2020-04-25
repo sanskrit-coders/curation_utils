@@ -5,5 +5,5 @@ def split_into_n_bits(list_in, n):
 
 def divide_chunks(list_in, n):
     # looping till length l 
-    for i in range(0, len(l), n):
-        yield l[i:i + n] 
+    for i in range(0, len(list_in), n):
+        yield list_in[i:i + n] 
