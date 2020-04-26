@@ -1,6 +1,7 @@
 import io
 import logging
 import os
+from functools import lru_cache
 
 from googleapiclient import discovery
 from oauth2client.service_account import ServiceAccountCredentials
@@ -13,6 +14,11 @@ logging.basicConfig(
     format="%(levelname)s:%(asctime)s:%(module)s:%(lineno)d %(message)s"
 )
 logging.getLogger('oauth2client').setLevel(logging.INFO)
+
+
+@lru_cache
+def get_cached_client(google_key):
+    return DriveClient(google_key=google_key)
 
 
 class DriveClient(object):
@@ -54,8 +60,9 @@ class DriveClient(object):
         logging.info("Deleting %s", str(file_id))
         self.service.files().delete(fileId=file_id).execute()
 
-    def ocr_file(self, local_file_path):
-        ocr_file_path = local_file_path + ".txt"
+    def ocr_file(self, local_file_path, ocr_file_path=None):
+        if ocr_file_path == None:
+            ocr_file_path = local_file_path + ".txt"
         if os.path.exists(ocr_file_path):
             logging.warning("Not OCRing: %s already exists", ocr_file_path)
         else:
