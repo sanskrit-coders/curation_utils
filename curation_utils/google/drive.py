@@ -16,7 +16,7 @@ logging.basicConfig(
 logging.getLogger('oauth2client').setLevel(logging.INFO)
 
 
-@lru_cache
+@lru_cache(2)
 def get_cached_client(google_key):
     return DriveClient(google_key=google_key)
 
