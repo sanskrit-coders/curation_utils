@@ -106,3 +106,16 @@ class ArchiveItem(object):
                 #     self.update_mp3_metadata(mp3_file=basename_to_file[basename])
             else:
                 logging.warning("Found nothing to update!")
+
+    def download_original_files(self, destination_dir, file_prefix="", skip_existing=True):
+        import wget
+        os.makedirs(destination_dir, exist_ok=True)
+        for url in self.original_item_files:
+            extension = os.path.splitext(url)[1]
+            remote_file_name = os.path.basename(url)
+            out_file = os.path.join(destination_dir, "%s%s" % (file_prefix, remote_file_name))
+            if not skip_existing or not os.path.exists(out_file):
+                logging.info("Getting %s as %s", url, out_file)
+                wget.download(url=url, out=out_file)
+            else:
+                logging.info("Skipping existing file %s", out_file)
