@@ -3,8 +3,13 @@ import logging
 import os
 from functools import lru_cache
 
+import socket
 from googleapiclient import discovery
 from oauth2client.service_account import ServiceAccountCredentials
+
+# Set the default timeout to 10 minutes
+# https://github.com/googleapis/google-api-python-client/issues/632#issuecomment-541973021
+socket.setdefaulttimeout(600)
 
 # Remove all handlers associated with the root logger object.
 for handler in logging.root.handlers[:]:
