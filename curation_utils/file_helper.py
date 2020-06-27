@@ -17,7 +17,9 @@ def concatenate_files(input_path_list, output_path, add_newline_inbetween=False)
 
 
 def clean_file_path(file_path):
-    return regex.sub("[^a-zA-Z0-9 _\\-~./]", "", file_path)
+    file_path_out = regex.sub("[^a-zA-Z0-9 _\\-~./]", "", file_path)
+    file_path_out = regex.sub(" +", "_", file_path_out)
+    return file_path_out
 
 
 def clean_file_names(dir_path, dry_run=False):
