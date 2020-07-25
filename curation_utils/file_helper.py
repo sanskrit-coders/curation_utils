@@ -35,3 +35,12 @@ def clean_file_names(dir_path, dry_run=False):
             logging.info("Changing '%s' to '%s'", path, dest_path)
             if not dry_run:
                 os.rename(path, dest_path)
+
+
+def copy_file_tree(source_dir, dest_dir, file_pattern, file_name_filter=None):
+    file_paths = sorted(filter(file_name_filter, Path(source_dir).glob(file_pattern)))
+    for file_path in file_paths:
+        dest_path = str(file_path).replace(source_dir, dest_dir)
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+        logging.info("Moving %s to %s", file_path, dest_path)
+        dest = shutil.copyfile(file_path, dest_path)
