@@ -1,3 +1,4 @@
+[![Actions Status](https://github.com/sanskrit-coders/curation_utils/workflows/Python%20package/badge.svg)](https://github.com/sanskrit-coders/curation_utils/actions)
 [![Build Status](https://travis-ci.org/sanskrit-coders/curation_utils.svg?branch=master)](https://travis-ci.org/sanskrit-coders/curation_utils)
 [![Documentation Status](https://readthedocs.org/projects/curation_utils/badge/?version=latest)](http://curation_utils.readthedocs.io/en/latest/?badge=latest)
 [![PyPI version](https://badge.fury.io/py/curation_utils.svg)](https://badge.fury.io/py/curation_utils)
