@@ -15,9 +15,11 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="%(levelname)s:%(asctime)s:%(module)s:%(lineno)d %(message)s")
 logging.getLogger('charsetgroupprober').setLevel(logging.WARNING)
+logging.getLogger("charsetgroupprober").propagate = False
 logging.getLogger('sbcharsetprober').setLevel(logging.WARNING)
+logging.getLogger("sbcharsetprober").propagate = False
 
-re_chars_to_remove = re.compile('[\uFEFF\u00A0\r]')
+re_chars_to_remove = re.compile('[\uFEFF\u00A0\r﻿]')
 
 
 def clear_bad_chars(s):
@@ -54,9 +56,13 @@ def unicodify(file_path):
 
 
 def clear_bad_chars_in_file(file_path, dry_run=False):
-    unicodify(file_path=file_path)
-    with open(file_path, 'r', encoding="utf-8") as file:
-        text = clear_bad_chars(s=file.read())
+    try:
+        with open(file_path, 'r', encoding="utf-8") as file:
+            text = clear_bad_chars(s=file.read())
+    except Exception:
+        unicodify(file_path=file_path)
+        with open(file_path, 'r', encoding="utf-8") as file:
+            text = clear_bad_chars(s=file.read())
     with open(file_path, 'w', encoding="utf-8") as file:
         if not dry_run:
             file.writelines(text)
