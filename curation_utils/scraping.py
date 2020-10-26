@@ -1,7 +1,10 @@
+import codecs
 import logging
 
 import requests
 from bs4 import BeautifulSoup
+
+from curation_utils import file_helper
 
 for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
@@ -34,6 +37,13 @@ def get_selenium_browser(headless=True):
     return webdriver.Chrome(options=opts)
 
 def get_soup(url):
-    result = requests.get(url, headers)
-    soup = BeautifulSoup(result.content, features="lxml")
+    url = url.replace("file://", "")
+    if url.startswith("/"):
+        file_helper.unicodify(url)
+        with codecs.open(url, 'r') as f:
+            content = f.read()
+    else:
+        result = requests.get(url, headers)
+        content = result.content
+    soup = BeautifulSoup(content, features="lxml")
     return soup
