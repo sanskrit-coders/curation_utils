@@ -71,6 +71,7 @@ class DriveClient(object):
         if os.path.exists(ocr_file_path):
             logging.warning("Not OCRing: %s already exists", ocr_file_path)
         else:
+            logging.info("OCRing %s to %s", local_file_path, ocr_file_path)
             upload_result = self.upload(local_file_path=local_file_path)
             uploaded_file_id = upload_result["id"]
             self.download_text(local_file_path=ocr_file_path, file_id=uploaded_file_id)
