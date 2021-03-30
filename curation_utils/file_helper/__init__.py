@@ -5,8 +5,10 @@ import os
 import re
 import shutil
 from pathlib import Path
+from urllib.parse import urlparse
 
 import regex
+import requests
 from chardet import UniversalDetector
 
 for handler in logging.root.handlers[:]:
@@ -108,3 +110,18 @@ def copy_file_tree(source_dir, dest_dir, file_pattern, file_name_filter=None):
         os.makedirs(os.path.dirname(dest_path), exist_ok=True)
         logging.info("Moving %s to %s", file_path, dest_path)
         _ = shutil.copyfile(file_path, dest_path)
+
+
+def download_file(url:str, filepath:str = None):
+    ''' Download file from url to specified filepath.
+        If filepath is None, then the file is saved in the current directory
+        and the path is returned.
+    '''
+    if filepath is None:
+        path = urlparse(url).path
+        filepath = Path(path).name
+    r = requests.get(url, stream=True)
+    with open(filepath, "wb") as fd:
+        for chunk in r.iter_content(chunk_size=128):
+            fd.write(chunk)
+    return filepath
