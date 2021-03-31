@@ -125,3 +125,15 @@ def download_file(url:str, filepath:str = None):
         for chunk in r.iter_content(chunk_size=128):
             fd.write(chunk)
     return filepath
+
+
+def remove_empty_dirs(path):
+    def remove_dir_if_empty(path):
+        try:
+            os.rmdir(path)
+        except OSError:
+            pass
+    remove_dir_if_empty(path=path)
+    for root, dirnames, filenames in os.walk(path, topdown=False):
+        for dirname in dirnames:
+            remove_dir_if_empty(os.path.realpath(os.path.join(root, dirname)))
