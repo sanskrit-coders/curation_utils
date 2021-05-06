@@ -1,6 +1,7 @@
 import logging
 import os
 import pprint
+from pathlib import Path
 
 import internetarchive
 
@@ -16,14 +17,14 @@ class ArchiveItem(object):
     """
     Represents an archive.org item.
     """
-    def __init__(self, archive_id, metadata=None, config_file_path=None, mirrors_repo_structure=False):
+    def __init__(self, archive_id, metadata=None, config_file_path=None, repo_base=None):
         """
         
         :param archive_id: 
         :param config_file_path:
-        :param mirrors_repo_structure: In archive item, place each file in a folder mirroring its local location.
+        :param repo_base: In archive item, place each file in a folder mirroring its local location.
         """
-        self.mirrors_repo_structure = mirrors_repo_structure
+        self.repo_base = repo_base
         self.archive_id = archive_id
         self.archive_session = internetarchive.get_session(config_file=config_file_path)
         self.archive_item = internetarchive.get_item(archive_id, config_file=config_file_path)
@@ -49,10 +50,10 @@ class ArchiveItem(object):
         """
         
         :param file_path: A path like git_repo_name/mp3/xyz.mp3
-        :return: If self.mirrors_repo_structure : git_repo_name/xyz.mp3, else: xyz.mp3
+        :return: If self.repo_base : git_repo_name/xyz.mp3, else: xyz.mp3
         """
         basename = os.path.basename(file_path)
-        return os.path.join(os.path.basename(os.path.dirname(os.path.dirname(file_path))), basename) if self.mirrors_repo_structure else basename
+        return file_path.replace(self.repo_base, "") if self.repo_base else basename
 
     def delete_unaccounted_for_files(self, all_files, dry_run=False):
         """
@@ -71,7 +72,7 @@ class ArchiveItem(object):
         if len(false_original_item_file_names) > 0 and not dry_run:
             internetarchive.delete(self.archive_item.identifier, files=false_original_item_file_names, cascade_delete=True, access_key=self.archive_session.access_key, secret_key=self.archive_session.secret_key)
 
-    def update_archive_item(self, file_paths, overwrite_all=False, dry_run=False):
+    def update_with_files(self, file_paths, overwrite_all=False, dry_run=False):
         """
         Upload some files.
     
@@ -107,6 +108,10 @@ class ArchiveItem(object):
             else:
                 logging.warning("Found nothing to update!")
 
+    def update_from_dir(self, file_pattern="*", dry_run=False, overwrite_all=False):
+        file_paths = [str(p) for p in Path(self.repo_base).glob("**/" + file_pattern)]
+        self.update_with_files(file_paths=file_paths, overwrite_all=overwrite_all, dry_run=dry_run)
+        
     def download_original_files(self, destination_dir, file_prefix="", skip_existing=True):
         import wget
         os.makedirs(destination_dir, exist_ok=True)
