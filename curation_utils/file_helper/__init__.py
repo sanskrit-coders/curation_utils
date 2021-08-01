@@ -10,6 +10,8 @@ from urllib.parse import urlparse
 import regex
 import requests
 from chardet import UniversalDetector
+from indic_transliteration import sanscript, detect
+
 
 for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
@@ -139,3 +141,13 @@ def remove_empty_dirs(path):
     for root, dirnames, filenames in os.walk(path, topdown=False):
         for dirname in dirnames:
             remove_dir_if_empty(os.path.realpath(os.path.join(root, dirname)))
+
+
+def get_storage_name(text):
+  text_optitrans = text.replace("/", " ")
+  if detect.detect(text_optitrans) == 'IAST':
+    text_optitrans = sanscript.transliterate(text_optitrans, _from=sanscript.IAST, _to=sanscript.OPTITRANS)
+  elif detect.detect(text_optitrans) == 'Devanagari':
+    text_optitrans = sanscript.transliterate(text_optitrans, _from=sanscript.DEVANAGARI, _to=sanscript.OPTITRANS)
+  storage_name = clean_file_path(text_optitrans)[:20]
+  return storage_name

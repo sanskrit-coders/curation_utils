@@ -16,3 +16,4 @@ internetarchive
 pypandoc
 setuptools
 chardet
+indic_transliteration
