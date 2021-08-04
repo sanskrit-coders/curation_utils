@@ -151,3 +151,22 @@ def get_storage_name(text):
     text_optitrans = sanscript.transliterate(text_optitrans, _from=sanscript.DEVANAGARI, _to=sanscript.OPTITRANS)
   storage_name = clean_file_path(text_optitrans)[:20]
   return storage_name
+
+
+def substitute_with_latest(paths_in, latest_file_paths, dry_run=False):
+  basenames = [os.path.basename(file) for file in latest_file_paths]
+  undated_basenames = ["_".join(basename.split("_")[1:]) for basename in basenames if "_" in basename]
+  undated_basename_to_latest_path = dict(zip(undated_basenames, latest_file_paths))
+  basename_to_latest_path = dict(zip(basenames, latest_file_paths))
+  for file in paths_in:
+    basename = os.path.basename(file)
+    if basename in basename_to_latest_path and basename != "_index.md":
+        logging.info("Updating %s at %s", basename, file)
+        if not dry_run:
+          shutil.copy(basename_to_latest_path[basename], file)
+    elif basename in undated_basename_to_latest_path and basename != "_index.md":
+        logging.info("Updating %s at %s", basename, file)
+        if not dry_run:
+          shutil.copy(undated_basename_to_latest_path[basename], file)
+    elif basename != "_index.md":
+        logging.warning("Could not update %s at %s", basename, file)
