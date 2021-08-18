@@ -23,7 +23,7 @@ logging.getLogger("charsetgroupprober").propagate = False
 logging.getLogger('sbcharsetprober').setLevel(logging.WARNING)
 logging.getLogger("sbcharsetprober").propagate = False
 
-re_chars_to_remove = re.compile('[\uFEFF\u00A0\r﻿]')
+re_chars_to_remove = re.compile('[\uFEFF\u00A0\r﻿​]')
 
 
 def clear_bad_chars(s):
