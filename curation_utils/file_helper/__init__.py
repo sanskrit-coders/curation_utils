@@ -94,6 +94,14 @@ def clean_file_path(file_path):
     return file_path_out
 
 
+def clean_file_name(name):
+    name_parts = name.split(".")
+    fixed_parts = []
+    for name_part in name_parts:
+      fixed_parts.append(clean_file_path(file_path=name_part).replace("/", "_SLASH_"))
+    return ".".join(fixed_parts)
+
+
 def clean_file_names(dir_path, dry_run=False):
     paths = list(Path(dir_path).glob("**/*"))
     logging.info("Got %d paths", len(paths))
