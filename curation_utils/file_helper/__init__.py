@@ -153,9 +153,9 @@ def remove_empty_dirs(path):
 
 def get_storage_name(text, max_length=None):
   text_optitrans = text.replace("/", " ")
-  if detect.detect(text_optitrans) == 'IAST':
+  if detect.detect(text_optitrans) == 'iast':
     text_optitrans = sanscript.transliterate(text_optitrans, _from=sanscript.IAST, _to=sanscript.OPTITRANS)
-  elif detect.detect(text_optitrans) == 'Devanagari':
+  elif detect.detect(text_optitrans) == 'devanagari':
     text_optitrans = sanscript.transliterate(text_optitrans, _from=sanscript.DEVANAGARI, _to=sanscript.OPTITRANS)
   storage_name = clean_file_path(text_optitrans)
   if max_length is not None:
