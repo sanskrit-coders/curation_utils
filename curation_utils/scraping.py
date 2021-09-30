@@ -1,5 +1,6 @@
 import codecs
 import logging
+import time
 
 import requests
 from bs4 import BeautifulSoup
@@ -31,7 +32,7 @@ headers.update(common_headers)
 headers.update(chrome_headers)
 
 
-def get_selenium_browser(headless=True):
+def get_selenium_chrome(headless=True):
   from selenium import webdriver
   from selenium.webdriver.chrome import options
   opts = options.Options()
@@ -55,5 +56,34 @@ def get_soup(url):
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     result = requests.get(url, headers, verify=False)
     content = result.content
+  soup = BeautifulSoup(content, features="lxml")
+  return soup
+
+
+def scroll_with_selenium(url, browser):
+  browser.get(url)
+  SCROLL_PAUSE_TIME = 2
+
+  # Get scroll height
+  last_height = browser.execute_script("return document.body.scrollHeight")
+
+  while True:
+    # Scroll down to bottom
+    browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+
+    # Wait to load page
+    time.sleep(SCROLL_PAUSE_TIME)
+
+    # Calculate new scroll height and compare with last scroll height
+    new_height = browser.execute_script("return document.body.scrollHeight")
+    if new_height == last_height:
+      break
+    last_height = new_height
+  logging.info("Scrolled to the bottom of %s", url)
+  return browser.page_source
+
+
+def scroll_and_get_soup(url, browser):
+  content = scroll_with_selenium(url=url, browser=browser)
   soup = BeautifulSoup(content, features="lxml")
   return soup
