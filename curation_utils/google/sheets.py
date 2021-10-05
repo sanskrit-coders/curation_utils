@@ -46,6 +46,9 @@ class IndexSheet(object):
         df = df.set_index(self.id_column)
         self._df = df
 
+    def get_df(self):
+        return self._df
+
     def get_value(self, id, column_name):
         try:
             return self._df.loc[id, column_name]
