@@ -10,6 +10,7 @@ import regex
 import requests
 from chardet import UniversalDetector
 from indic_transliteration import sanscript
+from indic_transliteration.sanscript.schemes import roman
 
 for handler in logging.root.handlers[:]:
   logging.root.removeHandler(handler)
@@ -154,9 +155,13 @@ def get_storage_name(text, max_length=None, maybe_use_dravidian_variant=True, mi
   from indic_transliteration import detect
   source_script = detect.detect(text=text)
   text_optitrans = text.replace("/", " ")
-  if source_script == sanscript.IAST and mixed_languages_in_titles:
-    text_optitrans = sanscript.SCHEMES[sanscript.IAST].mark_off_non_indic_in_line(text_optitrans)
-  text_optitrans = sanscript.transliterate(text_optitrans, source_script, sanscript.OPTITRANS, suspend_on= set('<'), suspend_off = set('>'), maybe_use_dravidian_variant=maybe_use_dravidian_variant)
+  if source_script in roman.ALL_SCHEME_IDS:
+    if source_script in roman.CAPITALIZABLE_SCHEME_IDS:
+      if mixed_languages_in_titles:
+        text_optitrans = sanscript.SCHEMES[sanscript.IAST].mark_off_non_indic_in_line(text_optitrans)
+        text_optitrans = sanscript.transliterate(text_optitrans, source_script, sanscript.OPTITRANS, suspend_on= set('<'), suspend_off = set('>'), maybe_use_dravidian_variant=maybe_use_dravidian_variant)
+  else:
+    text_optitrans = sanscript.transliterate(text_optitrans, source_script, sanscript.OPTITRANS, maybe_use_dravidian_variant=maybe_use_dravidian_variant)
   storage_name = clean_file_path(text_optitrans)
   if max_length is not None:
     storage_name = storage_name[max_length]

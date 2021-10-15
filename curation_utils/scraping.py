@@ -1,6 +1,7 @@
 import codecs
 import logging
 import time
+import httpx
 
 import requests
 from bs4 import BeautifulSoup
@@ -24,9 +25,15 @@ from urllib3.connectionpool import log as urllibLogger
 urllibLogger.setLevel(logging.WARNING)
 # Set headers
 firefox_headers = {'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0'}
-chrome_headers = {
+chrome_headers_android = {
   'User-Agent': 'Mozilla/5.0 (Linux; Android 5.1.1; SM-G928X Build/LMY47X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.83 Mobile Safari/537.36'}
-common_headers = {'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'}
+chrome_headers = {
+  'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.61 Safari/537.36',
+  'sec-ch-ua': '"Chromium";v="94", "Google Chrome";v="94", ";Not A Brand";v="99"'
+}
+common_headers = {
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9'
+}
 headers = requests.utils.default_headers()
 headers.update(common_headers)
 headers.update(chrome_headers)
@@ -38,6 +45,14 @@ def get_selenium_chrome(headless=True):
   opts = options.Options()
   opts.headless = headless
   return webdriver.Chrome(options=opts)
+
+
+def get_url_with_requests_lib(url):
+  import urllib3
+  urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+  result = requests.get(url, headers, verify=False)
+  # result.content has the content.
+  return result
 
 
 def get_soup(url):
@@ -52,10 +67,8 @@ def get_soup(url):
     with codecs.open(url, 'r') as f:
       content = f.read()
   else:
-    import urllib3
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-    result = requests.get(url, headers, verify=False)
-    content = result.content
+    result = httpx.get(url=url)
+    content = result.text
   soup = BeautifulSoup(content, features="lxml")
   return soup
 
