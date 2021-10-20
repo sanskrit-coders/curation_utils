@@ -88,7 +88,7 @@ def clean_file_path(file_path):
   # Handle avagrahas
   file_path_out = regex.sub(r"(\S)\.a", "\\1-", file_path_out)
   file_path_out = regex.sub(" +", "_", file_path_out)
-  file_path_out = regex.sub("__+", "_", file_path_out)
+  file_path_out = regex.sub("__+", "__", file_path_out)
   file_path_out = regex.sub("_([./])", "\\1", file_path_out)
   return file_path_out
 
@@ -154,7 +154,7 @@ def remove_empty_dirs(path):
 def get_storage_name(text, max_length=None, maybe_use_dravidian_variant=True, mixed_languages_in_titles=True):
   from indic_transliteration import detect
   source_script = detect.detect(text=text)
-  text_optitrans = text.replace("/", " ")
+  text_optitrans = regex.sub("/ *", "__", text)
   if source_script in roman.ALL_SCHEME_IDS:
     if source_script in roman.CAPITALIZABLE_SCHEME_IDS:
       if mixed_languages_in_titles:
