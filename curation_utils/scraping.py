@@ -67,7 +67,7 @@ def get_soup(url):
     with codecs.open(url, 'r') as f:
       content = f.read()
   else:
-    result = httpx.get(url=url)
+    result = httpx.get(url=url, follow_redirects=True)
     content = result.text
   soup = BeautifulSoup(content, features="lxml")
   return soup
