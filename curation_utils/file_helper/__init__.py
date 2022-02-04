@@ -151,15 +151,16 @@ def remove_empty_dirs(path):
       remove_dir_if_empty(os.path.realpath(os.path.join(root, dirname)))
 
 
-def get_storage_name(text, max_length=None, maybe_use_dravidian_variant=True, mixed_languages_in_titles=True):
+def get_storage_name(text, source_script=None, max_length=None, maybe_use_dravidian_variant=True, mixed_languages_in_titles=True):
   from indic_transliteration import detect
-  source_script = detect.detect(text=text)
+  if source_script is None:
+    source_script = detect.detect(text=text)
   text_optitrans = regex.sub("/ *", "__", text)
   if source_script in roman.ALL_SCHEME_IDS:
     if source_script in roman.CAPITALIZABLE_SCHEME_IDS:
       if mixed_languages_in_titles:
         text_optitrans = sanscript.SCHEMES[sanscript.IAST].mark_off_non_indic_in_line(text_optitrans)
-        text_optitrans = sanscript.transliterate(text_optitrans, source_script, sanscript.OPTITRANS, suspend_on= set('<'), suspend_off = set('>'), maybe_use_dravidian_variant=maybe_use_dravidian_variant)
+      text_optitrans = sanscript.transliterate(text_optitrans, source_script, sanscript.OPTITRANS, suspend_on= set('<'), suspend_off = set('>'), maybe_use_dravidian_variant=maybe_use_dravidian_variant)
   else:
     text_optitrans = sanscript.transliterate(text_optitrans, source_script, sanscript.OPTITRANS, maybe_use_dravidian_variant=maybe_use_dravidian_variant)
   storage_name = clean_file_path(text_optitrans)
