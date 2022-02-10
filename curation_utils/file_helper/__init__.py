@@ -165,7 +165,7 @@ def get_storage_name(text, source_script=None, max_length=30, maybe_use_dravidia
     text_optitrans = sanscript.transliterate(text_optitrans, source_script, sanscript.OPTITRANS, maybe_use_dravidian_variant=maybe_use_dravidian_variant)
   storage_name = clean_file_path(text_optitrans)
   if max_length is not None:
-    storage_name = storage_name[max_length]
+    storage_name = storage_name[:max_length]
   return storage_name
 
 
