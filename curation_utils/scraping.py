@@ -73,6 +73,13 @@ def get_soup(url):
   return soup
 
 
+def get_post_soup(url, timeout=30.0):
+  result = httpx.post(url=url, follow_redirects=True, timeout=timeout)
+  content = result.text
+  soup = BeautifulSoup(content, features="lxml")
+  return soup
+
+
 def scroll_with_selenium(url, browser):
   browser.get(url)
   SCROLL_PAUSE_TIME = 2

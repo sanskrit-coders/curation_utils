@@ -151,7 +151,7 @@ def remove_empty_dirs(path):
       remove_dir_if_empty(os.path.realpath(os.path.join(root, dirname)))
 
 
-def get_storage_name(text, source_script=None, max_length=30, maybe_use_dravidian_variant=True, mixed_languages_in_titles=True):
+def get_storage_name(text, source_script=None, max_length=50, maybe_use_dravidian_variant=True, mixed_languages_in_titles=True):
   from indic_transliteration import detect
   if source_script is None:
     source_script = detect.detect(text=text)
