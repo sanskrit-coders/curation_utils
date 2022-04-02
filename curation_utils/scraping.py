@@ -47,6 +47,15 @@ def get_selenium_chrome(headless=True):
   return webdriver.Chrome(options=opts)
 
 
+
+def get_selenium_firefox(headless=True):
+  from selenium import webdriver
+  from selenium.webdriver.firefox import options
+  opts = options.Options()
+  opts.headless = headless
+  return webdriver.Firefox(options=opts)
+
+
 def get_url_with_requests_lib(url):
   import urllib3
   urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -80,9 +89,8 @@ def get_post_soup(url, timeout=30.0):
   return soup
 
 
-def scroll_with_selenium(url, browser):
+def scroll_with_selenium(url, browser, scroll_pause=2):
   browser.get(url)
-  SCROLL_PAUSE_TIME = 2
 
   # Get scroll height
   last_height = browser.execute_script("return document.body.scrollHeight")
@@ -92,7 +100,7 @@ def scroll_with_selenium(url, browser):
     browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 
     # Wait to load page
-    time.sleep(SCROLL_PAUSE_TIME)
+    time.sleep(scroll_pause)
 
     # Calculate new scroll height and compare with last scroll height
     new_height = browser.execute_script("return document.body.scrollHeight")
