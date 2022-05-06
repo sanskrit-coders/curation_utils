@@ -71,6 +71,8 @@ def get_soup(url):
   :return: 
   """
   url = url.replace("file://", "")
+  if "#" in url:
+    url = "#".join(url.split("#")[:-1])
   if url.startswith("/"):
     file_helper.unicodify(url)
     with codecs.open(url, 'r') as f:
