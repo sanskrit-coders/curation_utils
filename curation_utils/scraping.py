@@ -64,7 +64,7 @@ def get_url_with_requests_lib(url):
   return result
 
 
-def get_soup(url):
+def get_soup(url, features="lxml"):
   """
   
   :param url: Examples: https://a:b@c.com/ https://xyz.com 
@@ -80,7 +80,7 @@ def get_soup(url):
   else:
     result = httpx.get(url=url, follow_redirects=True, timeout=30.0)
     content = result.text
-  soup = BeautifulSoup(content, features="lxml")
+  soup = BeautifulSoup(content, features=features)
   return soup
 
 
