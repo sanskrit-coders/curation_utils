@@ -19,7 +19,7 @@ try:
     # noinspection PyPackageRequirements
     import pypandoc
 
-    long_description = pypandoc.convert(source='README.md', to='rst', format='markdown_github')
+    long_description = pypandoc.convert_file(source='README.md', to='rst', format='markdown_github')
 except (IOError, ImportError):
     long_description = ''
 
@@ -37,7 +37,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.2.3',
+    version='0.2.4',
 
     description='Miscellaneous curation scripts.',
     long_description=long_description,
