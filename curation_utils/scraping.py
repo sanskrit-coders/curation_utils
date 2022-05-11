@@ -64,6 +64,12 @@ def get_url_with_requests_lib(url):
   return result
 
 
+def clean_url(url):
+  if "#" in url:
+    url = "#".join(url.split("#")[:-1])
+  return url
+
+
 def get_soup(url, features="lxml"):
   """
   
@@ -71,8 +77,7 @@ def get_soup(url, features="lxml"):
   :return: 
   """
   url = url.replace("file://", "")
-  if "#" in url:
-    url = "#".join(url.split("#")[:-1])
+  url = clean_url(url)
   if url.startswith("/"):
     file_helper.unicodify(url)
     with codecs.open(url, 'r') as f:
