@@ -44,6 +44,7 @@ def get_selenium_chrome(headless=True):
   from selenium.webdriver.chrome import options
   opts = options.Options()
   opts.headless = headless
+  opts.add_argument('--remote-debugging-port=9222')
   return webdriver.Chrome(options=opts)
 
 
