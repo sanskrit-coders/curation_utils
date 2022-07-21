@@ -1,4 +1,5 @@
 import codecs
+import glob
 import logging
 import os
 import re
@@ -11,6 +12,8 @@ import requests
 from chardet import UniversalDetector
 from indic_transliteration import sanscript
 from indic_transliteration.sanscript.schemes import roman
+from collections import defaultdict
+from tqdm import tqdm
 
 for handler in logging.root.handlers[:]:
   logging.root.removeHandler(handler)
@@ -200,3 +203,24 @@ def rename_files(name_map, path_prefix=None, dry_run=False):
       if os.path.exists(new):
         shutil.rmtree(new)
       shutil.move(original, new)
+
+
+def find_files_with_same_basename(src_dir, dest_dir, pattern="**/*.md"):
+  src_paths = sorted(list(Path(src_dir).glob(pattern)))
+  logging.info("Got %d source paths", len(src_paths))
+  dest_paths = sorted(list(Path(dest_dir).glob(pattern)))
+  basename_to_dest_path = defaultdict(list)
+  for dest_path in dest_paths:
+    basename_to_dest_path[os.path.basename(dest_path)].append(str(dest_path))
+  logging.info("Got %d dest basenames", len(basename_to_dest_path))
+
+  matching_paths = {}
+  unmatched_paths = []
+  for path in tqdm(src_paths):
+    file_name = os.path.basename(path)
+    if file_name in basename_to_dest_path:
+      matching_paths[path] = basename_to_dest_path[file_name]
+    else:
+      unmatched_paths.append(str(path))
+  logging.info("Got %d matches", len(matching_paths))
+  return (matching_paths, unmatched_paths)
