@@ -53,7 +53,8 @@ class ArchiveItem(object):
         :return: If self.repo_base : git_repo_name/xyz.mp3, else: xyz.mp3
         """
         basename = os.path.basename(file_path)
-        return file_path.replace(self.repo_base, "") if self.repo_base else basename
+        import regex
+        return regex.sub(self.repo_base + "/*", "", file_path) if self.repo_base else basename
 
     def delete_unaccounted_for_files(self, all_files, dry_run=False):
         """
@@ -90,11 +91,13 @@ class ArchiveItem(object):
         remote_names = list(map(lambda file_path: self.get_remote_name(file_path), file_paths))
         remote_name_to_file_path = dict(
             zip(remote_names, file_paths))
+        logging.info(f"Got {len(self.original_item_file_names)} remote files and {len(remote_names)} local files.")
         remote_name_to_file_path_filtered = remote_name_to_file_path
         if not overwrite_all:
             remote_name_to_file_path_filtered = dict(
                 filter(lambda item: item[0] not in self.original_item_file_names, remote_name_to_file_path.items()))
-        logging.info(pprint.pformat(remote_name_to_file_path_filtered.items()))
+        logging.info(f"Uploading {len(remote_name_to_file_path_filtered)} files")
+        # logging.debug(pprint.pformat(remote_name_to_file_path_filtered.items()))
         if dry_run:
             logging.warning("Not doing anything - in dry_run mode")
         else:
