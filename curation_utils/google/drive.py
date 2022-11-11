@@ -27,7 +27,7 @@ def get_cached_client(google_key):
 
 
 class DriveClient(object):
-    def __init__(self, google_key='/home/vvasuki/sysconf/kunchikA/google/sanskritnlp/service_account_key.json'):
+    def __init__(self, google_key='/home/vvasuki/gitland/vvasuki-git/sysconf/kunchikA/google/sanskritnlp/service_account_key.json'):
         """ Interact with Google Drive via this client.
         
         :param google_key: Path to a json file which can be obtained from https://console.cloud.google.com/iam-admin/serviceaccounts (create a project, generate a key via "Actions" column.).
