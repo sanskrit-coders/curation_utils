@@ -2,6 +2,7 @@ import codecs
 import logging
 import time
 import httpx
+import backoff
 
 import requests
 from bs4 import BeautifulSoup
@@ -71,6 +72,13 @@ def clean_url(url):
   return url
 
 
+@backoff.on_predicate(backoff.expo,
+                      lambda result: 400 <= result.status_code < 500,
+                      max_time=600)
+def get_url_backoffed(url, method=httpx.get, timeout=30.0):
+  result = method(url=url, follow_redirects=True, timeout=timeout)
+  return result
+
 def get_soup(url, features="lxml"):
   """
   
@@ -84,14 +92,14 @@ def get_soup(url, features="lxml"):
     with codecs.open(url, 'r') as f:
       content = f.read()
   else:
-    result = httpx.get(url=url, follow_redirects=True, timeout=30.0)
+    result = get_url_backoffed(url=url)
     content = result.text
   soup = BeautifulSoup(content, features=features)
   return soup
 
 
 def get_post_soup(url, timeout=30.0):
-  result = httpx.post(url=url, follow_redirects=True, timeout=timeout)
+  result = get_url_backoffed(url=url, method=httpx.post, timeout=timeout)
   content = result.text
   soup = BeautifulSoup(content, features="lxml")
   return soup

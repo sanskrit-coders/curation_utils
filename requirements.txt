@@ -19,3 +19,4 @@ setuptools
 chardet
 indic_transliteration
 tqdm
+backoff
