@@ -72,9 +72,10 @@ def clean_url(url):
   return url
 
 
-@backoff.on_predicate(backoff.expo,
-                      lambda result: 400 <= result.status_code < 500,
-                      max_time=600)
+@backoff.on_predicate(wait_gen=backoff.expo,
+                      predicate=lambda result: 400 <= result.status_code < 500,
+                      max_time=6000,
+                      factor=2, max_value=300)
 def get_url_backoffed(url, method=httpx.get, timeout=30.0):
   result = method(url=url, follow_redirects=True, timeout=timeout)
   return result
