@@ -25,7 +25,7 @@ logging.getLogger("charsetgroupprober").propagate = False
 logging.getLogger('sbcharsetprober').setLevel(logging.WARNING)
 logging.getLogger("sbcharsetprober").propagate = False
 
-re_chars_to_remove = re.compile('[\uFEFF\u00A0\r﻿​]')
+re_chars_to_remove = re.compile('[ \uFEFF\u00A0\r﻿​]')
 
 
 def clear_bad_chars(s):
@@ -165,6 +165,10 @@ def get_storage_name(text, source_script=None, max_length=50, maybe_use_dravidia
         text_optitrans = sanscript.SCHEMES[sanscript.IAST].mark_off_non_indic_in_line(text_optitrans)
       text_optitrans = sanscript.transliterate(text_optitrans, source_script, sanscript.OPTITRANS, suspend_on= set('<'), suspend_off = set('>'), maybe_use_dravidian_variant=maybe_use_dravidian_variant)
   else:
+    if source_script == sanscript.TAMIL:
+      from indic_transliteration import aksharamukha_helper
+      text_optitrans = aksharamukha_helper.transliterate_tamil(text=text)
+      source_script = sanscript.DEVANAGARI
     text_optitrans = sanscript.transliterate(text_optitrans, source_script, sanscript.OPTITRANS, maybe_use_dravidian_variant=maybe_use_dravidian_variant)
   storage_name = clean_file_path(text_optitrans)
   if max_length is not None:
