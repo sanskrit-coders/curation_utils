@@ -135,6 +135,7 @@ class ArchiveItem(object):
 
 
 def update_item(item_id, dir_path, file_patterns=["*.mp3", "*.txt", "*.pdf"], metadata=None):
+  logging.info(f"To {item_id} from {dir_path}")
   archive_item = ArchiveItem(archive_id=item_id,
                                         repo_base=dir_path, metadata=metadata)
   archive_item.update_from_dir(file_patterns=file_patterns)
