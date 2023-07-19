@@ -1,6 +1,8 @@
 import codecs
 import logging
 import time
+from functools import lru_cache
+
 import httpx
 import backoff
 
@@ -80,6 +82,9 @@ def get_url_backoffed(url, method=httpx.get, timeout=30.0):
   result = method(url=url, follow_redirects=True, timeout=timeout)
   return result
 
+
+
+@lru_cache(maxsize=2)
 def get_soup(url, features="lxml"):
   """
   
