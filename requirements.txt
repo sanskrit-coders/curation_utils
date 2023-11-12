@@ -3,7 +3,6 @@ gspread
 oauth2client
 pandas
 wget
-google
 requests
 bs4
 beautifulsoup4
