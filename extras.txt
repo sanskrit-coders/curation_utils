@@ -1,0 +1,1 @@
+internetarchive # Installation failed on in 2023 on cloud https://github.com/sanskrit/ashtadhyayi_com_transforms/actions/runs/6838064102/job/18594757310#step:6:1168

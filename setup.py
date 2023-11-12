@@ -31,13 +31,23 @@ with open('requirements.txt', 'r') as f:
         ] if s != ''
     ]
 
+with open('extras.txt', 'r') as f:
+    install_extras = [
+        s for s in [
+            line.split('#', 1)[0].strip(' \t\n') for line in f
+        ] if s != ''
+    ]
+
+install_all = install_reqs + install_extras
+
+
 setup(
     name='curation_utils',
 
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.2.7',
+    version='0.2.8',
 
     description='Miscellaneous curation scripts.',
     long_description=long_description,
@@ -97,6 +107,8 @@ setup(
     extras_require={
         # 'dev': ['check-manifest'],
         'test': ['pytest'],
+        'all': install_all,
+        'extras': install_extras,
     },
 
     # If there are data files included in your packages that need to be
