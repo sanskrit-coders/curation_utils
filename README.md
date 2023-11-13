@@ -14,8 +14,8 @@ Miscellaneous audio processing tools.
 
 
 ## Installation or upgrade:
-* `sudo pip install curation_utils -U`
-* `sudo pip install git+https://github.com/sanskrit-coders/curation_utils/@master -U`
+* `sudo pip install curation_utils -U -e.[all]`
+* `sudo pip install git+https://github.com/sanskrit-coders/curation_utils/@master -U -e.[all]`
 * [Web](https://pypi.python.org/pypi/curation_utils).
 
 
