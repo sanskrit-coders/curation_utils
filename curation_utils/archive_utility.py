@@ -123,7 +123,8 @@ class ArchiveItem(object):
   def download_original_files(self, destination_dir, file_prefix="", skip_existing=True):
     import wget
     os.makedirs(destination_dir, exist_ok=True)
-    for url in self.original_item_files:
+    urls = [os.path.join(self.archive_item.urls.download, x) for x in self.original_item_file_names]
+    for url in urls:
       extension = os.path.splitext(url)[1]
       remote_file_name = os.path.basename(url)
       out_file = os.path.join(destination_dir, "%s%s" % (file_prefix, remote_file_name))
