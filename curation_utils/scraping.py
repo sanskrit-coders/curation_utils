@@ -112,6 +112,8 @@ def get_post_soup(url, timeout=30.0):
 
 
 def scroll_with_selenium(url, browser, scroll_pause=2):
+  if browser is None:
+    browser = get_selenium_chrome()
   browser.get(url)
 
   # Get scroll height
@@ -133,7 +135,7 @@ def scroll_with_selenium(url, browser, scroll_pause=2):
   return browser.page_source
 
 
-def scroll_and_get_soup(url, browser):
-  content = scroll_with_selenium(url=url, browser=browser)
+def scroll_and_get_soup(url, browser, scroll_pause=2):
+  content = scroll_with_selenium(url=url, browser=browser, scroll_pause=scroll_pause)
   soup = BeautifulSoup(content, features="lxml")
   return soup
