@@ -114,7 +114,8 @@ def get_post_soup(url, timeout=30.0):
 def scroll_with_selenium(url, browser, scroll_pause=2):
   if browser is None:
     browser = get_selenium_chrome()
-  browser.get(url)
+  if url is not None:
+    browser.get(url)
 
   # Get scroll height
   last_height = browser.execute_script("return document.body.scrollHeight")
