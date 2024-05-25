@@ -5,9 +5,13 @@ from functools import lru_cache
 
 import httpx
 import backoff
+import regex
 
 import requests
 from bs4 import BeautifulSoup
+from selenium.webdriver import Keys
+from selenium.webdriver.common.by import By
+
 from curation_utils import file_helper
 
 for handler in logging.root.handlers[:]:
@@ -111,32 +115,41 @@ def get_post_soup(url, timeout=30.0):
   return soup
 
 
-def scroll_with_selenium(url, browser, scroll_pause=2):
+def scroll_with_selenium(url, browser, scroll_pause=2, element_js="document.body"):
   if browser is None:
     browser = get_selenium_chrome()
   if url is not None:
     browser.get(url)
 
   # Get scroll height
-  last_height = browser.execute_script("return document.body.scrollHeight")
+  last_height = browser.execute_script(f"return {element_js}.scrollHeight")
 
   while True:
     # Scroll down to bottom
-    browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    match = regex.match(r".+getElementById\(['\"](.+?)['\"]\)", element_js)
+    if match is not None:
+      element = browser.find_element(By.ID, match.group(1))
+      element.click()
+      time.sleep(scroll_pause)
+      element.send_keys(Keys.PAGE_DOWN)
+    else:
+      browser.execute_script(f"{element_js}.scrollTo(0, {element_js}.scrollHeight);")
+      # browser.execute_script(f"{element_js}.scrollDown += 100;")
 
     # Wait to load page
     time.sleep(scroll_pause)
 
     # Calculate new scroll height and compare with last scroll height
-    new_height = browser.execute_script("return document.body.scrollHeight")
+    new_height = browser.execute_script(f"return {element_js}.scrollHeight")
+    logging.debug(f"{last_height} to {new_height}")
     if new_height == last_height:
       break
     last_height = new_height
-  logging.info("Scrolled to the bottom of %s", url)
+  logging.info(f"Scrolled to the bottom of {element_js} in {url}")
   return browser.page_source
 
 
-def scroll_and_get_soup(url, browser, scroll_pause=2):
-  content = scroll_with_selenium(url=url, browser=browser, scroll_pause=scroll_pause)
+def scroll_and_get_soup(url, browser, scroll_pause=2, element_js="document.body"):
+  content = scroll_with_selenium(url=url, browser=browser, scroll_pause=scroll_pause, element_js=element_js)
   soup = BeautifulSoup(content, features="lxml")
   return soup
