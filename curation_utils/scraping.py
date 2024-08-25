@@ -83,7 +83,7 @@ def clean_url(url):
                       max_time=6000,
                       factor=2, max_value=300)
 def get_url_backoffed(url, method=httpx.get, timeout=30.0):
-  result = method(url=url, follow_redirects=True, timeout=timeout)
+  result = method(url=url, allow_redirects=True, timeout=timeout)
   return result
 
 
