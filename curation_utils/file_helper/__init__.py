@@ -158,23 +158,54 @@ def get_storage_name(text, source_script=None, max_length=50, maybe_use_dravidia
   from indic_transliteration import detect
   if source_script is None:
     source_script = detect.detect(text=text)
-  text_optitrans = regex.sub("/ *", "__", text)
+  text_optitrans = text
+  text_optitrans = regex.sub("/ *", "__", text_optitrans)
   if source_script in roman.ALL_SCHEME_IDS:
     if source_script in roman.CAPITALIZABLE_SCHEME_IDS:
       if mixed_languages_in_titles:
         text_optitrans = sanscript.SCHEMES[sanscript.IAST].mark_off_non_indic_in_line(text_optitrans)
       text_optitrans = sanscript.transliterate(text_optitrans, source_script, sanscript.OPTITRANS, suspend_on= set('<'), suspend_off = set('>'), maybe_use_dravidian_variant=maybe_use_dravidian_variant)
+      if source_script in [sanscript.IAST]:
+        text_optitrans = regex.sub(r"\|", "/", text_optitrans)
   else:
     if source_script == sanscript.TAMIL:
       from indic_transliteration import aksharamukha_helper
       text_optitrans = aksharamukha_helper.transliterate_tamil(text=text)
       source_script = sanscript.DEVANAGARI
     text_optitrans = sanscript.transliterate(text_optitrans, source_script, sanscript.OPTITRANS, maybe_use_dravidian_variant=maybe_use_dravidian_variant)
-  text_optitrans = regex.sub("/", "_", text_optitrans)
+  # text_optitrans = regex.sub("/", "_", text_optitrans)
   storage_name = clean_file_path(text_optitrans)
   if max_length is not None:
     storage_name = storage_name[:max_length]
   return storage_name
+
+
+def get_storage_path(file_path, source_script, max_length=50, mixed_languages_in_titles=True,
+                     maybe_use_dravidian_variant="no"):
+  texts = file_path.split("/")
+  (basename, extension) = os.path.splitext(texts[-1])
+  texts[-1] = basename
+  return "/".join([get_storage_name(x, source_script=source_script, max_length=max_length, maybe_use_dravidian_variant=maybe_use_dravidian_variant, mixed_languages_in_titles=mixed_languages_in_titles) for x in texts]) + extension
+
+
+def rename_files_with_storage_name(dir_path, source_script=None, dry_run=False, max_length=20):
+  pass
+  paths = reversed(sorted(list(Path(dir_path).glob("**/*"))))
+  logging.info("Got %d paths", len(paths))
+  dest_paths = []
+  for fpath in paths:
+    fpath = str(fpath)
+    dest_path = get_storage_path(fpath, source_script=source_script, max_length=max_length)
+    if fpath != dest_path:
+      i = 1
+      basename, extension = os.path.splitext(dest_path)
+      while os.path.exists(dest_path) or dest_path in dest_paths:
+        i += 1
+        dest_path = f"{basename}__{i}{extension}"
+      logging.info("Changing '%s' to '%s'", fpath, dest_path)
+      dest_paths.append(dest_path)
+      if not dry_run:
+        os.rename(fpath, dest_path)
 
 
 def substitute_with_latest(paths_in, latest_file_paths, dry_run=False):
@@ -229,3 +260,8 @@ def find_files_with_same_basename(src_dir, dest_dir, pattern="**/*.md"):
       unmatched_paths.append(str(path))
   logging.info("Got %d matches", len(matching_paths))
   return (matching_paths, unmatched_paths)
+
+
+if __name__ == '__main__':
+  pass
+  rename_files_with_storage_name("/home/vvasuki/gitland/sanskrit/raw_etexts/AgamAH/bauddham/asian_classics_hk", source_script=sanscript.IAST, dry_run=False)
