@@ -57,14 +57,19 @@ class ArchiveItem(object):
     import regex
     return regex.sub(self.repo_base + "/*", "", file_path) if self.repo_base else basename
 
-  def delete_unaccounted_for_files(self, all_files, dry_run=False):
+  def delete_unaccounted_for_files(self, all_files_or_dir, dry_run=False):
     """
     Delete all unaccounted-for-files among all_files.
 
     May not satisfactorily delete files under directories.
-    :param all_files: This has to include exactly _every_ file that is expected to be present in the archive item.
+    :param all_files_or_dir: This has to include exactly _every_ file that is expected to be present in the archive item.
     """
-    local_basenames = list(map(os.path.basename, all_files))
+    if all_files_or_dir is None:
+      all_files_or_dir = self.repo_base
+    if isinstance(all_files_or_dir, str):
+      local_basenames = list(map(os.path.basename, os.listdir(all_files_or_dir)))
+    else:
+      local_basenames = list(map(os.path.basename, all_files_or_dir))
     # Deletion
     false_original_item_file_names = list(
       filter(lambda x: x not in local_basenames, self.original_item_file_names))
