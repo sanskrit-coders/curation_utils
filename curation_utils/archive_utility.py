@@ -1,4 +1,4 @@
-import logging
+import logging, regex
 import os
 import pprint
 from pathlib import Path
@@ -56,6 +56,17 @@ class ArchiveItem(object):
     basename = os.path.basename(file_path)
     import regex
     return regex.sub(self.repo_base + "/*", "", file_path) if self.repo_base else basename
+
+
+  def delete_matching(self, pattern, dry_run=False):
+    files_to_delete = []
+    for file_id, details in self.item_files_dict.items():
+      if regex.fullmatch(pattern, file_id) is not None:
+        files_to_delete.append(file_id)
+    
+    logging.info(f"Deleting {files_to_delete}")
+    if not dry_run:
+      internetarchive.delete(self.archive_item.identifier, files=files_to_delete, cascade_delete=True, access_key=self.archive_session.access_key, secret_key=self.archive_session.secret_key)
 
   def delete_unaccounted_for_files(self, all_files_or_dir, dry_run=False):
     """
