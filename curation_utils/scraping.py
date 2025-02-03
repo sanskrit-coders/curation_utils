@@ -5,6 +5,7 @@ from functools import lru_cache
 
 import httpx
 import backoff
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 import regex
 
 import requests
@@ -12,7 +13,9 @@ from bs4 import BeautifulSoup
 from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, \
   ElementNotInteractableException, JavascriptException
 from selenium.webdriver import Keys
+from httpx import ConnectError, RequestError
 from selenium.webdriver.common.by import By
+from tqdm import tqdm
 
 from curation_utils import file_helper
 
@@ -51,10 +54,16 @@ headers.update(chrome_headers)
 def get_selenium_chrome(headless=True):
   from selenium import webdriver
   from selenium.webdriver.chrome import options
-  opts = options.Options()
-  opts.headless = headless
-  opts.add_argument('--remote-debugging-port=9222')
-  return webdriver.Chrome(options=opts)
+  options = options.Options()
+  options.headless = headless
+  if headless:
+    options.add_argument("--headless")    
+    options.add_argument("--disable-gpu")  # Applicable for Windows OS
+    options.add_argument("--no-sandbox")
+  # options.add_argument('--remote-debugging-port=9222')
+  browser = webdriver.Chrome(options=options)
+  browser.set_page_load_timeout(1000)
+  return browser
 
 
 
@@ -80,6 +89,11 @@ def clean_url(url):
   return url
 
 
+@retry(wait=wait_exponential(multiplier=1, min=4, max=60), stop=stop_after_attempt(5), retry=retry_if_exception_type(httpx.ConnectError))
+@backoff.on_exception(wait_gen=backoff.expo,
+                      exception=(ConnectError, RequestError),
+                      max_time=6000,
+                      factor=2, max_value=300)
 @backoff.on_predicate(wait_gen=backoff.expo,
                       predicate=lambda result: 400 <= result. status_code < 500 and result.status_code not in [404, 503],
                       max_time=6000,
@@ -133,42 +147,45 @@ def scroll_with_selenium(url, browser, scroll_pause=2, element_css="body", scrol
   except JavascriptException:
     last_height = None
   page_id = 0
-  while True:
-    # Scroll down to bottom
-    page_id += 1
-
-    if scroll_btn_css is not None:
-      try:
-        scroll_btn = browser.find_element(By.CSS_SELECTOR, scroll_btn_css)
-        browser.execute_script("arguments[0].click();", scroll_btn)
-        # The below may fail in case of a disabled button
-        try:
-          scroll_btn.click()
-        except ElementNotInteractableException:
-          break
-      except NoSuchElementException:
-        logging.info(f"No such element found {scroll_btn_css}")
-
-    logging.info(f"Moving to page {page_id}.")
-    try:
-      element = browser.find_element(By.CSS_SELECTOR, element_css)
-      browser.execute_script("arguments[0].click();", element)
-      # element.click()
-      # element.send_keys(Keys.END)
-      browser.execute_script(f"{element_js}.scrollTo(0, {element_js}.scrollHeight);")
-      # Wait to load page
-      time.sleep(scroll_pause)
+  with tqdm(desc="Scrolling", unit=" scrolls") as pbar:
+    while True:
+      # Scroll down to bottom
   
-      # Calculate new scroll height and compare with last scroll height
-      new_height = browser.execute_script(f"return {element_js}.scrollHeight")
-      logging.debug(f"{last_height} to {new_height}")
-      if new_height == last_height:
+      if scroll_btn_css is not None:
+        try:
+          scroll_btn = browser.find_element(By.CSS_SELECTOR, scroll_btn_css)
+          browser.execute_script("arguments[0].click();", scroll_btn)
+          # The below may fail in case of a disabled button
+          try:
+            scroll_btn.click()
+          except ElementNotInteractableException:
+            break
+        except NoSuchElementException:
+          logging.info(f"No such element found {scroll_btn_css}")
+  
+      # logging.info(f"Moving to page {page_id}.")
+      try:
+        element = browser.find_element(By.CSS_SELECTOR, element_css)
+        browser.execute_script("arguments[0].click();", element)
+        # element.click()
+        # element.send_keys(Keys.END)
+        browser.execute_script(f"{element_js}.scrollTo(0, {element_js}.scrollHeight);")
+        # Wait to load page
+        time.sleep(scroll_pause)
+    
+        # Calculate new scroll height and compare with last scroll height
+        new_height = browser.execute_script(f"return {element_js}.scrollHeight")
+        # logging.debug(f"{last_height} to {new_height}")
+        page_id += 1
+        pbar.set_postfix_str(f"Height: {new_height}")
+        pbar.update(1)
+        if new_height == last_height:
+          break
+        last_height = new_height
+      except NoSuchElementException:
+        logging.warning(f"No such element found {element_css}")
         break
-      last_height = new_height
-    except NoSuchElementException:
-      logging.warning(f"No such element found {element_css}")
-      break
-      # browser.execute_script(f"{element_js}.scrollDown += 100;")
+        # browser.execute_script(f"{element_js}.scrollDown += 100;")
 
   logging.info(f"Scrolled to the bottom of {element_css} in {url}")
   return browser.page_source

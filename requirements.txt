@@ -15,3 +15,4 @@ chardet
 indic_transliteration
 tqdm
 backoff
+tenacity
