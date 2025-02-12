@@ -29,12 +29,17 @@ logger = logging.getLogger('chardet')
 logger.setLevel(logging.CRITICAL)
 
 from selenium.webdriver.remote.remote_connection import LOGGER
-
 LOGGER.setLevel(logging.WARNING)
 
 from urllib3.connectionpool import log as urllibLogger
-
 urllibLogger.setLevel(logging.WARNING)
+
+
+# Set the logging level for your specific loggers
+logging.getLogger("httpx").setLevel(logging.INFO)
+logging.getLogger("httpcore").setLevel(logging.INFO)
+
+
 # Set headers
 firefox_headers = {'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0'}
 chrome_headers_android = {
@@ -95,7 +100,7 @@ def clean_url(url):
                       max_time=6000,
                       factor=2, max_value=300)
 @backoff.on_predicate(wait_gen=backoff.expo,
-                      predicate=lambda result: 400 <= result. status_code < 500 and result.status_code not in [404, 503],
+                      predicate=lambda result: 400 <= result. status_code < 500 and result.status_code not in [404, 403, 503],
                       max_time=6000,
                       factor=2, max_value=300)
 def get_url_backoffed(url, method=httpx.get, timeout=30.0):
