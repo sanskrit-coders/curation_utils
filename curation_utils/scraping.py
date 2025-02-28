@@ -11,7 +11,7 @@ import regex
 import requests
 from bs4 import BeautifulSoup
 from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, \
-  ElementNotInteractableException, JavascriptException
+  ElementNotInteractableException, ElementClickInterceptedException, JavascriptException
 from selenium.webdriver import Keys
 from httpx import ConnectError, RequestError
 from selenium.webdriver.common.by import By
@@ -167,6 +167,9 @@ def scroll_with_selenium(url, browser, scroll_pause=2, element_css="body", scrol
             break
         except NoSuchElementException:
           logging.info(f"No such element found {scroll_btn_css}")
+        except ElementClickInterceptedException:
+          logging.info(f"Can't click {scroll_btn_css}. Breaking.")
+          break
   
       # logging.info(f"Moving to page {page_id}.")
       try:
