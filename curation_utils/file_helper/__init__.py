@@ -262,6 +262,76 @@ def find_files_with_same_basename(src_dir, dest_dir, pattern="**/*.md"):
   return (matching_paths, unmatched_paths)
 
 
+
+
+
+def find_file_with_prefix(path_prefix):
+  # Check if the base path exists as a file
+  if os.path.isfile(path_prefix):
+    return path_prefix
+
+  # If not, list all files in the directory and check for a match
+  dir_path = os.path.dirname(path_prefix)
+  for filename in os.listdir(dir_path):
+    file_path = os.path.join(dir_path, filename)
+    if os.path.isfile(file_path) and file_path.startswith(path_prefix):
+      return file_path
+
+  # If no matching file is found, return None
+  return None
+
+
+
+
+
+def list_dirtree(rootdir):
+  all_data = []
+
+  # noinspection PyPep8Naming,PyPep8Naming,PyPep8Naming,PyPep8Naming,PyPep8Naming
+  def _convert_size(value):
+    B = float(value)
+    KB = float(1024)
+    MB = float(KB ** 2)
+    GB = float(KB ** 3)
+    TB = float(KB ** 4)
+    if B < KB:
+      return '{0} {1}'.format(B, 'Bytes' if 0 == B > 1 else 'B')
+    if KB <= B < MB:
+      return '{0:.2f} KB'.format(B / KB)
+    if MB <= B < GB:
+      return '{0:.2f} MB'.format(B / MB)
+    if GB <= B < TB:
+      return '{0:.2f} GB'.format(B / GB)
+
+  try:
+    contents = os.listdir(rootdir)
+  except Exception as e:
+    logging.error("Error listing " + rootdir + ": " + str(e))
+    return all_data
+  else:
+    for item in contents:
+      itempath = os.path.join(rootdir, item)
+      info = {}
+      children = []
+      if os.path.isdir(itempath):
+        all_data.append(
+          dict(title=item,
+               path=itempath,
+               folder=True,
+               lazy=True,
+               key=itempath))
+      else:
+        fsize = os.path.getsize(itempath)
+        fsize = convert(fsize)
+        fstr = '[' + fsize + ']'
+        all_data.append(dict(title=item + ' ' + fstr, key=itempath))
+  return all_data
+
+
+
+
+
+
 if __name__ == '__main__':
   pass
   rename_files_with_storage_name("/home/vvasuki/gitland/sanskrit/raw_etexts/AgamAH/bauddham/asian_classics_hk", source_script=sanscript.IAST, dry_run=False)
