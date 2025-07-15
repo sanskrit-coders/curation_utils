@@ -18,7 +18,7 @@ class ArchiveItem(object):
   Represents an archive.org item.
   """
 
-  def __init__(self, archive_id, metadata=None, config_file_path=None, repo_base=None):
+  def __init__(self, archive_id, metadata=None, config_file_path="/home/vvasuki/.config/internetarchive/ia.ini", repo_base=None):
     """
     
     :param archive_id: 
