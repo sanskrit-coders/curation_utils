@@ -5,14 +5,15 @@ from functools import lru_cache
 
 import httpx
 import backoff
+from selenium.webdriver.support.wait import WebDriverWait
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 import regex
 
 import requests
 from bs4 import BeautifulSoup
 from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, \
-  ElementNotInteractableException, ElementClickInterceptedException, JavascriptException
-from selenium.webdriver import Keys
+  ElementNotInteractableException, ElementClickInterceptedException, JavascriptException, TimeoutException
+from selenium.webdriver import Keys, DesiredCapabilities
 from httpx import ConnectError, RequestError
 from selenium.webdriver.common.by import By
 from tqdm import tqdm
@@ -60,6 +61,12 @@ def get_selenium_chrome(headless=True):
   from selenium import webdriver
   from selenium.webdriver.chrome import options
   options = options.Options()
+  options.add_argument('--ignore-ssl-errors=yes')
+  options.add_argument('--ignore-certificate-errors')
+  options.add_argument("--allow-running-insecure-content");
+  options.set_capability('acceptInsecureCerts', True)
+  options.add_argument('--disable-web-security') # Can be useful in some cases
+  
   options.headless = headless
   if headless:
     options.add_argument("--headless")    
@@ -76,8 +83,35 @@ def get_selenium_firefox(headless=True):
   from selenium import webdriver
   from selenium.webdriver.firefox import options
   opts = options.Options()
-  opts.headless = headless
   return webdriver.Firefox(options=opts)
+
+
+def get_selenium_url(url, browser):
+  from selenium.webdriver.support import expected_conditions as EC
+
+  # --- Step 3: Navigate and Handle the Privacy Screen ---
+  print(f"Navigating to {url}...")
+  browser.get(url)
+  try:
+    proceed_btn = WebDriverWait(browser, 5).until(
+      EC.element_to_be_clickable((By.ID, "proceed-button"))
+    )
+    print("Found and clicking 'Advanced' button.")
+    proceed_btn.click()
+
+
+  except TimeoutException:
+    # If the "Advanced" button is not found after 5 seconds,
+    # we assume the page loaded correctly without the privacy error.
+    # print("Privacy error screen not detected. Page should be loaded.")
+    pass
+
+  # --- Step 5: Confirm successful navigation ---
+  # Wait for the title of the actual page to be something other than the error page title
+  WebDriverWait(browser, 10).until(
+    lambda d: d.title and "privacy" not in d.title.lower()
+  )
+  print(f"Successfully navigated. Page title is: '{browser.title}'")
 
 
 def get_url_with_requests_lib(url):
