@@ -1,5 +1,7 @@
 import codecs
 import logging
+import random
+import doc_curation
 import time
 from functools import lru_cache
 
@@ -49,12 +51,33 @@ chrome_headers = {
   'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.61 Safari/537.36',
   'sec-ch-ua': '"Chromium";v="94", "Google Chrome";v="94", ";Not A Brand";v="99"'
 }
+safari_headers = {
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Safari/605.1.15'
+}
+opera_headers = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36 OPR/80.0.4170.63'
+}
+edge_headers = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36 Edg/94.0.992.47'
+}
+ie_headers = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko'
+}
 common_headers = {
   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9'
 }
-headers = requests.utils.default_headers()
-headers.update(common_headers)
-headers.update(chrome_headers)
+
+common_headers.update(requests.utils.default_headers())
+chrome_headers.update(common_headers)
+firefox_headers.update(common_headers)
+safari_headers.update(common_headers)
+edge_headers.update(common_headers)
+ie_headers.update(common_headers)
+opera_headers.update(common_headers)
+
+chrome_headers_android.update(common_headers)
+headers = chrome_headers
+header_choices = [chrome_headers_android, chrome_headers, firefox_headers, safari_headers, opera_headers, edge_headers, ie_headers]
 
 
 def get_selenium_chrome(headless=True):
@@ -138,13 +161,31 @@ def clean_url(url):
                       max_time=6000,
                       factor=2, max_value=300)
 def get_url_backoffed(url, method=httpx.get, timeout=30.0):
-  result = method(url=url, follow_redirects=True, timeout=timeout)
+  result = method(url=url, headers=random.choice(header_choices), follow_redirects=True, timeout=timeout)
   return result
 
 
+def get_url_aws(url, config_aws=None):
+  # Source - https://stackoverflow.com/a/68451842
+  
+  import requests
+  from requests_ip_rotator import ApiGateway, EXTRA_REGIONS
+  
+  gateway = ApiGateway(url, access_key_id = config_aws[0], access_key_secret = config_aws[1])
+  gateway.start()
+  
+  session = requests.Session()
+  session.mount(url, gateway)
+  
+  response = session.get(url)
+  # print(response.status_code)
+  return response
+  # Only run this line if you are no longer going to run the script, as it takes longer to boot up again next time.
+  gateway.shutdown()
+
 
 @lru_cache(maxsize=2)
-def get_soup(url, features="lxml"):
+def get_soup(url, config_aws=None, features="lxml"):
   """
   
   :param url: Examples: https://a:b@c.com/ https://xyz.com 
@@ -157,7 +198,10 @@ def get_soup(url, features="lxml"):
     with codecs.open(url, 'r') as f:
       content = f.read()
   else:
-    result = get_url_backoffed(url=url)
+    if config_aws is not None:
+      result = get_url_aws(url=url, config_aws=config_aws)
+    else:
+      result = get_url_backoffed(url=url)
     content = result.text
   soup = BeautifulSoup(content, features=features)
   return soup
