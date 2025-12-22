@@ -80,6 +80,15 @@ headers = chrome_headers
 header_choices = [chrome_headers_android, chrome_headers, firefox_headers, safari_headers, opera_headers, edge_headers, ie_headers]
 
 
+def sleep_approx(duration, jitter=0):
+  import time
+  logging.info(f"Sleeping for {duration} + approx {jitter/2}")
+  start = time.time()
+  while time.time() - start < duration:
+      time.sleep(1)
+  time.sleep(random.uniform(0, jitter))
+
+
 def get_selenium_chrome(headless=True):
   from selenium import webdriver
   from selenium.webdriver.chrome import options
