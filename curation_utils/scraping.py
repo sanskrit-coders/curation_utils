@@ -251,6 +251,7 @@ def scroll_with_selenium(url, browser, scroll_pause=2, element_css="body", scrol
           try:
             scroll_btn.click()
           except ElementNotInteractableException:
+            logging.info(f"Non clickable element found {scroll_btn_css}")
             break
         except NoSuchElementException:
           logging.info(f"No such element found {scroll_btn_css}")
@@ -262,15 +263,15 @@ def scroll_with_selenium(url, browser, scroll_pause=2, element_css="body", scrol
       try:
         element = browser.find_element(By.CSS_SELECTOR, element_css)
         browser.execute_script("arguments[0].click();", element)
-        # element.click()
-        # element.send_keys(Keys.END)
+        element.click()
+        element.send_keys(Keys.END)
         browser.execute_script(f"{element_js}.scrollTo(0, {element_js}.scrollHeight);")
         # Wait to load page
         time.sleep(scroll_pause)
     
         # Calculate new scroll height and compare with last scroll height
         new_height = browser.execute_script(f"return {element_js}.scrollHeight")
-        # logging.debug(f"{last_height} to {new_height}")
+        logging.debug(f"{last_height} to {new_height}")
         page_id += 1
         pbar.set_postfix_str(f"Height: {new_height}")
         pbar.update(1)
