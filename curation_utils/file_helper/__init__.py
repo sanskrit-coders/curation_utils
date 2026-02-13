@@ -1,7 +1,7 @@
 import codecs
 import glob
 import logging
-import os
+import os, tempfile
 import re
 import shutil
 from pathlib import Path
@@ -13,6 +13,7 @@ from chardet import UniversalDetector
 from indic_transliteration import sanscript
 from indic_transliteration.sanscript.schemes import roman
 from collections import defaultdict
+from collections import OrderedDict
 from tqdm import tqdm
 
 for handler in logging.root.handlers[:]:
@@ -328,6 +329,50 @@ def list_dirtree(rootdir):
   return all_data
 
 
+def deduce_format_from_filename(filename):
+  format_hint = ".".join(filename.split(".")[1:])
+  format_map = OrderedDict()
+  format_map["json"] = "json"
+  format_map["toml"] = "toml"
+  for key, value in format_map.items():
+    if key in format_hint:
+      return value
+  return None
+
+
+def move_file_cross_device_safe(src: str, dst: str) -> None:
+  """
+  Move src -> dst.
+  - If src and dst are on the same filesystem, os.replace is fast+atomic.
+  - If they are on different filesystems (EXDEV), copy to a temp file in the
+    destination directory and then os.replace for an atomic publish.
+  """
+  dst_dir = os.path.dirname(dst) or "."
+  os.makedirs(dst_dir, exist_ok=True)
+
+  try:
+    os.replace(src, dst)
+    return
+  except OSError as e:
+    # Cross-device rename
+    if getattr(e, "errno", None) != 18:  # errno.EXDEV == 18
+      raise
+
+  fd, tmp_path = tempfile.mkstemp(prefix=".tmp_", suffix=os.path.splitext(dst)[1], dir=dst_dir)
+  os.close(fd)
+  try:
+    shutil.copy2(src, tmp_path)
+    os.replace(tmp_path, dst)
+    os.unlink(src)
+  except Exception:
+    # Best-effort cleanup of temp artifact
+    try:
+      if os.path.exists(tmp_path):
+        os.unlink(tmp_path)
+    finally:
+      raise
+
+
 
 
 
@@ -335,3 +380,4 @@ def list_dirtree(rootdir):
 if __name__ == '__main__':
   pass
   rename_files_with_storage_name("/home/vvasuki/gitland/sanskrit/raw_etexts/AgamAH/bauddham/asian_classics_hk", source_script=sanscript.IAST, dry_run=False)
+  
