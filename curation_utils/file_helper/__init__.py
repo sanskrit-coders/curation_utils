@@ -4,6 +4,7 @@ import logging
 import os, tempfile
 import re
 import shutil
+import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -68,8 +69,12 @@ def clear_bad_chars_in_file(file_path, dry_run=False):
       text = clear_bad_chars(s=file.read())
   except Exception:
     unicodify(file_path=file_path)
-    with open(file_path, 'r', encoding="utf-8") as file:
-      text = clear_bad_chars(s=file.read())
+    try:
+      with open(file_path, 'r', encoding="utf-8") as file:
+        text = clear_bad_chars(s=file.read())
+    except Exception:
+      logging.fatal(file_path)
+      sys.exit(1)
   with open(file_path, 'w', encoding="utf-8") as file:
     if not dry_run:
       file.writelines(text)
