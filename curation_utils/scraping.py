@@ -1,3 +1,5 @@
+from urllib.parse import urlparse, urljoin
+
 import codecs
 import logging
 import random
@@ -154,6 +156,15 @@ def get_url_with_requests_lib(url):
   return result
 
 
+def get_base_url(url: str, with_trailing_slash: bool = False) -> str:
+  """Returns scheme://netloc (the origin/base)"""
+  parsed = urlparse(url)
+  if not parsed.scheme or not parsed.netloc:
+    return ""
+  base = f"{parsed.scheme}://{parsed.netloc}"
+  return base + "/" if with_trailing_slash else base
+
+
 def clean_url(url):
   if "#" in url:
     url = "#".join(url.split("#")[:-1])
@@ -194,7 +205,7 @@ def get_url_aws(url, config_aws=None):
 
 
 @lru_cache(maxsize=2)
-def get_soup(url, config_aws=None, features="lxml"):
+def get_soup(url, config_aws=None, features="html.parser"):
   """
   
   :param url: Examples: https://a:b@c.com/ https://xyz.com 
@@ -219,7 +230,7 @@ def get_soup(url, config_aws=None, features="lxml"):
 def get_post_soup(url, timeout=30.0):
   result = get_url_backoffed(url=url, method=httpx.post, timeout=timeout)
   content = result.text
-  soup = BeautifulSoup(content, features="lxml")
+  soup = BeautifulSoup(content, features="html.parser")
   return soup
 
 
@@ -289,5 +300,5 @@ def scroll_with_selenium(url, browser, scroll_pause=2, element_css="body", scrol
 
 def scroll_and_get_soup(url, browser, scroll_pause=2, element_css="body", scroll_btn_css=None):
   content = scroll_with_selenium(url=url, browser=browser, scroll_pause=scroll_pause, element_css=element_css, scroll_btn_css=scroll_btn_css)
-  soup = BeautifulSoup(content, features="lxml")
+  soup = BeautifulSoup(content, features="html.parser")
   return soup
