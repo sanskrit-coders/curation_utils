@@ -171,18 +171,42 @@ def clean_url(url):
   return url
 
 
-@retry(wait=wait_exponential(multiplier=1, min=4, max=60), stop=stop_after_attempt(5), retry=retry_if_exception_type(httpx.ConnectError))
-@backoff.on_exception(wait_gen=backoff.expo,
-                      exception=(ConnectError, RequestError),
-                      max_time=6000,
-                      factor=2, max_value=300)
-@backoff.on_predicate(wait_gen=backoff.expo,
-                      predicate=lambda result: 400 <= result. status_code < 500 and result.status_code not in [404, 403, 503],
-                      max_time=6000,
-                      factor=2, max_value=300)
-def get_url_backoffed(url, method=httpx.get, timeout=30.0):
-  result = method(url=url, headers=random.choice(header_choices), follow_redirects=True, timeout=timeout)
-  return result
+def build_get_url_backoffed(retry_on_404=False):
+  def base_get_url(url, method=httpx.get, timeout=30.0):
+    return method(url=url,
+                  headers=random.choice(header_choices),
+                  follow_redirects=True,
+                  timeout=timeout)
+  # Apply tenacity retry for connection errors
+  fn = retry(wait=wait_exponential(multiplier=1, min=4, max=60),
+             stop=stop_after_attempt(5),
+             retry=retry_if_exception_type(httpx.ConnectError))(base_get_url)
+
+  # Apply backoff on exceptions
+  fn = backoff.on_exception(wait_gen=backoff.expo,
+                            exception=(ConnectError, RequestError),
+                            max_time=6000,
+                            factor=2, max_value=300)(fn)
+
+  # Predicate-based backoff
+  base_predicate = lambda result: 400 <= result.status_code < 523 and result.status_code not in [403, 503]
+  if retry_on_404:
+    predicate = base_predicate
+  else:
+    predicate = lambda result: base_predicate(result) and result.status_code not in [404]
+
+  fn = backoff.on_predicate(wait_gen=backoff.expo,
+                            predicate=predicate,
+                            max_time=6000,
+                            factor=2, max_value=300)(fn)
+
+  return fn
+
+
+
+def get_url_backoffed(url, method=httpx.get, timeout=30.0, retry_on_404=False):
+  get_url = build_get_url_backoffed(retry_on_404=retry_on_404) 
+  return get_url(url=url, method=method, timeout=timeout)
 
 
 def get_url_aws(url, config_aws=None):
@@ -205,7 +229,7 @@ def get_url_aws(url, config_aws=None):
 
 
 @lru_cache(maxsize=2)
-def get_soup(url, config_aws=None, features="html.parser"):
+def get_soup(url, config_aws=None, features="html.parser", retry_on_404=False):
   """
   
   :param url: Examples: https://a:b@c.com/ https://xyz.com 
@@ -221,14 +245,14 @@ def get_soup(url, config_aws=None, features="html.parser"):
     if config_aws is not None:
       result = get_url_aws(url=url, config_aws=config_aws)
     else:
-      result = get_url_backoffed(url=url)
+      result = get_url_backoffed(url=url, retry_on_404=retry_on_404)
     content = result.text
   soup = BeautifulSoup(content, features=features)
-  return soup
+  return (soup, result)
 
 
-def get_post_soup(url, timeout=30.0):
-  result = get_url_backoffed(url=url, method=httpx.post, timeout=timeout)
+def get_post_soup(url, timeout=30.0, retry_on_404=False):
+  result = get_url_backoffed(url=url, method=httpx.post, timeout=timeout, retry_on_404=retry_on_404)
   content = result.text
   soup = BeautifulSoup(content, features="html.parser")
   return soup

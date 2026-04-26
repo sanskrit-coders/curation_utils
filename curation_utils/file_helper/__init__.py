@@ -166,6 +166,7 @@ def get_storage_name(text, source_script=None, max_length=50, maybe_use_dravidia
     source_script = detect.detect(text=text)
   text_optitrans = text
   text_optitrans = regex.sub("/ *", "__", text_optitrans)
+  text_optitrans = regex.sub(r"\.", "_", text_optitrans)
   if source_script in roman.ALL_SCHEME_IDS:
     if source_script in roman.CAPITALIZABLE_SCHEME_IDS:
       if mixed_languages_in_titles:
