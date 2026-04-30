@@ -186,7 +186,7 @@ def build_get_url_backoffed(retry_on_404=False):
   fn = backoff.on_exception(wait_gen=backoff.expo,
                             exception=(ConnectError, RequestError),
                             max_time=6000,
-                            factor=2, max_value=300)(fn)
+                            factor=2, max_value=300, max_tries=5)(fn)
 
   # Predicate-based backoff
   base_predicate = lambda result: 400 <= result.status_code < 523 and result.status_code not in [403, 503]
@@ -198,7 +198,7 @@ def build_get_url_backoffed(retry_on_404=False):
   fn = backoff.on_predicate(wait_gen=backoff.expo,
                             predicate=predicate,
                             max_time=6000,
-                            factor=2, max_value=300)(fn)
+                            factor=2, max_value=300, max_tries=5)(fn)
 
   return fn
 
@@ -241,12 +241,18 @@ def get_soup(url, config_aws=None, features="html.parser", retry_on_404=False):
     file_helper.unicodify(url)
     with codecs.open(url, 'r') as f:
       content = f.read()
+    result = None
   else:
     if config_aws is not None:
       result = get_url_aws(url=url, config_aws=config_aws)
     else:
       result = get_url_backoffed(url=url, retry_on_404=retry_on_404)
+
+    if 400 <= result.status_code < 600:
+      return (None, result)
+
     content = result.text
+
   soup = BeautifulSoup(content, features=features)
   return (soup, result)
 
