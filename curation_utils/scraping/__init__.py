@@ -3,7 +3,6 @@ from urllib.parse import urlparse, urljoin
 import codecs
 import logging
 import random
-import doc_curation
 import time
 from functools import lru_cache
 
@@ -16,7 +15,8 @@ import regex
 import requests
 from bs4 import BeautifulSoup
 from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, \
-  ElementNotInteractableException, ElementClickInterceptedException, JavascriptException, TimeoutException
+  ElementNotInteractableException, ElementClickInterceptedException, JavascriptException, TimeoutException, \
+  UnexpectedAlertPresentException, NoAlertPresentException
 from selenium.webdriver import Keys, DesiredCapabilities
 from httpx import ConnectError, RequestError
 from selenium.webdriver.common.by import By
@@ -66,7 +66,9 @@ ie_headers = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv:11.0) like Gecko'
 }
 common_headers = {
-  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9'
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+  "Cache-Control": "no-cache",
+  "Pragma": "no-cache"
 }
 
 common_headers.update(requests.utils.default_headers())
@@ -264,31 +266,57 @@ def get_post_soup(url, timeout=30.0, retry_on_404=False):
   return soup
 
 
+def accept_alert(browser):
+  from selenium.common.exceptions import NoAlertPresentException
+  
+  try:
+      alert = browser.switch_to.alert
+      print("Alert text:", alert.text)
+      alert.accept()  # or alert.dismiss()
+  except NoAlertPresentException:
+      pass
+
+
+def run_js_safely(script, browser, *args, **kwargs):
+  try:
+    return browser.execute_script(script, *args, **kwargs)
+  except UnexpectedAlertPresentException:
+    try:
+      alert = browser.switch_to.alert
+      print("Alert text:", alert.text)
+      alert.accept()
+    except NoAlertPresentException:
+      pass
+    return browser.execute_script(script, *args, **kwargs)
+
+
+
 def scroll_with_selenium(url, browser, scroll_pause=2, element_css="body", scroll_btn_css=None):
   if browser is None:
     browser = get_selenium_chrome()
   if url is not None:
     browser.get(url)
 
+  # Use document.documentElement for standard HTML5 viewport height measurements
   if element_css != "body":
-    element_js = f"document.querySelector('{element_css}')";
+    element_js = f"document.querySelector('{element_css}')"
   else:
-    element_js = "document.body"
+    element_js = "document.documentElement"
+
   # Get scroll height
   try:
-    last_height = browser.execute_script(f"return {element_js}.scrollHeight")
+    last_height = run_js_safely(f"return {element_js}.scrollHeight", browser)
   except JavascriptException:
     last_height = None
+
   page_id = 0
   with tqdm(desc="Scrolling", unit=" scrolls") as pbar:
     while True:
       # Scroll down to bottom
-  
       if scroll_btn_css is not None:
         try:
           scroll_btn = browser.find_element(By.CSS_SELECTOR, scroll_btn_css)
-          browser.execute_script("arguments[0].click();", scroll_btn)
-          # The below may fail in case of a disabled button
+          run_js_safely("arguments[0].click();", browser, scroll_btn)
           try:
             scroll_btn.click()
           except ElementNotInteractableException:
@@ -299,34 +327,35 @@ def scroll_with_selenium(url, browser, scroll_pause=2, element_css="body", scrol
         except ElementClickInterceptedException:
           logging.info(f"Can't click {scroll_btn_css}. Breaking.")
           break
-  
-      # logging.info(f"Moving to page {page_id}.")
+
       try:
         element = browser.find_element(By.CSS_SELECTOR, element_css)
-        browser.execute_script("arguments[0].click();", element)
-        element.click()
-        element.send_keys(Keys.END)
-        browser.execute_script(f"{element_js}.scrollTo(0, {element_js}.scrollHeight);")
+
+        # FIX: Check if we are scrolling the main body, and use window.scrollTo instead
+        if element_css == "body":
+          run_js_safely("window.scrollTo(0, document.documentElement.scrollHeight);", browser)
+        else:
+          run_js_safely("arguments[0].scrollTop = arguments[0].scrollHeight;", browser, element)
+
         # Wait to load page
         time.sleep(scroll_pause)
-    
+
         # Calculate new scroll height and compare with last scroll height
-        new_height = browser.execute_script(f"return {element_js}.scrollHeight")
+        new_height = run_js_safely(script=f"return {element_js}.scrollHeight", browser=browser)
         logging.debug(f"{last_height} to {new_height}")
         page_id += 1
         pbar.set_postfix_str(f"Height: {new_height}")
         pbar.update(1)
+
         if new_height == last_height:
           break
         last_height = new_height
       except NoSuchElementException:
         logging.warning(f"No such element found {element_css}")
         break
-        # browser.execute_script(f"{element_js}.scrollDown += 100;")
 
   logging.info(f"Scrolled to the bottom of {element_css} in {url}")
   return browser.page_source
-
 
 def scroll_and_get_soup(url, browser, scroll_pause=2, element_css="body", scroll_btn_css=None):
   content = scroll_with_selenium(url=url, browser=browser, scroll_pause=scroll_pause, element_css=element_css, scroll_btn_css=scroll_btn_css)
