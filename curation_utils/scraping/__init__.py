@@ -8,6 +8,7 @@ from functools import lru_cache
 
 import httpx
 import backoff
+from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 import regex
@@ -291,11 +292,25 @@ def run_js_safely(script, browser, *args, **kwargs):
 
 
 
-def scroll_with_selenium(url, browser, scroll_pause=2, element_css="body", scroll_btn_css=None):
+def scroll_with_selenium(
+    url,
+    browser,
+    scroll_pause=2,
+    element_css="body",
+    scroll_btn_css=None,
+    stable_checks=3,
+    timeout=600
+):
   if browser is None:
     browser = get_selenium_chrome()
   if url is not None:
     browser.get(url)
+
+  wait = WebDriverWait(browser, 20)
+  try:
+    wait.until(expected_conditions.presence_of_element_located((By.CSS_SELECTOR, element_css)))
+  except Exception:
+    logging.debug(f"Element {element_css} not present after initial wait")
 
   # Use document.documentElement for standard HTML5 viewport height measurements
   if element_css != "body":
@@ -303,27 +318,43 @@ def scroll_with_selenium(url, browser, scroll_pause=2, element_css="body", scrol
   else:
     element_js = "document.documentElement"
 
-  # Get scroll height
+  # initial measurements
   try:
     last_height = run_js_safely(f"return {element_js}.scrollHeight", browser)
   except JavascriptException:
     last_height = None
 
+  try:
+    last_text_len = run_js_safely(f"return (document.querySelector('{element_css}') || document.documentElement).innerText.length", browser)
+  except JavascriptException:
+    last_text_len = None
+
+  stable_count_height = 0
+  stable_count_text = 0
+  start_time = time.time()
+
   page_id = 0
   with tqdm(desc="Scrolling", unit=" scrolls") as pbar:
     while True:
-      # Scroll down to bottom
+      # global timeout guard
+      if time.time() - start_time > timeout:
+        logging.warning("Timeout reached while waiting for stability")
+        break
+
+      # Scroll down to bottom or click load-more button if provided
       if scroll_btn_css is not None:
         try:
           scroll_btn = browser.find_element(By.CSS_SELECTOR, scroll_btn_css)
-          run_js_safely("arguments[0].click();", browser, scroll_btn)
           try:
             scroll_btn.click()
           except ElementNotInteractableException:
-            logging.info(f"Non clickable element found {scroll_btn_css}")
-            break
+            try:
+              run_js_safely("arguments[0].click();", browser, scroll_btn)
+            except Exception:
+              logging.info(f"Non clickable element found {scroll_btn_css}")
+              break
         except NoSuchElementException:
-          logging.info(f"No such element found {scroll_btn_css}")
+          logging.debug(f"No such element found {scroll_btn_css}")
         except ElementClickInterceptedException:
           logging.info(f"Can't click {scroll_btn_css}. Breaking.")
           break
@@ -331,7 +362,7 @@ def scroll_with_selenium(url, browser, scroll_pause=2, element_css="body", scrol
       try:
         element = browser.find_element(By.CSS_SELECTOR, element_css)
 
-        # FIX: Check if we are scrolling the main body, and use window.scrollTo instead
+        # Scroll using appropriate target
         if element_css == "body":
           run_js_safely("window.scrollTo(0, document.documentElement.scrollHeight);", browser)
         else:
@@ -340,24 +371,65 @@ def scroll_with_selenium(url, browser, scroll_pause=2, element_css="body", scrol
         # Wait to load page
         time.sleep(scroll_pause)
 
-        # Calculate new scroll height and compare with last scroll height
-        new_height = run_js_safely(script=f"return {element_js}.scrollHeight", browser=browser)
-        logging.debug(f"{last_height} to {new_height}")
+        # Measure new scroll height
+        try:
+          new_height = run_js_safely(script=f"return {element_js}.scrollHeight", browser=browser)
+        except JavascriptException:
+          new_height = None
+
+        # Measure new text length (visible text)
+        try:
+          new_text_len = run_js_safely(
+            script=f"return (document.querySelector('{element_css}') || document.documentElement).innerText.length",
+            browser=browser
+          )
+        except JavascriptException:
+          new_text_len = None
+
+        logging.debug(f"Height: {last_height} -> {new_height}; TextLen: {last_text_len} -> {new_text_len}")
         page_id += 1
-        pbar.set_postfix_str(f"Height: {new_height}")
+        pbar.set_postfix_str(f"Height: {new_height} TextLen: {new_text_len}")
         pbar.update(1)
 
-        if new_height == last_height:
-          break
+        # Update stability counters for height
+        if last_height is None or new_height is None:
+          stable_count_height = 0
+        else:
+          if new_height > last_height:
+            stable_count_height = 0
+          else:
+            stable_count_height += 1
         last_height = new_height
+
+        # Update stability counters for text length
+        if last_text_len is None or new_text_len is None:
+          stable_count_text = 0
+        else:
+          if new_text_len > last_text_len:
+            stable_count_text = 0
+          else:
+            stable_count_text += 1
+        last_text_len = new_text_len
+
+        # If both metrics have been stable for required consecutive checks, stop
+        if stable_count_height >= stable_checks and stable_count_text >= stable_checks:
+          logging.info(f"Both height and text length stabilized (height stable {stable_count_height}, text stable {stable_count_text})")
+          break
+
+        # Fallback: if neither metric changed at all this iteration, break to avoid infinite loop
+        if new_height == last_height and new_text_len == last_text_len:
+          logging.debug("No change detected in both metrics this iteration")
+          # allow loop to continue to accumulate stable counts; do not break immediately
+
       except NoSuchElementException:
         logging.warning(f"No such element found {element_css}")
         break
 
-  logging.info(f"Scrolled to the bottom of {element_css} in {url}")
+
+  logging.info(f"Scrolled and stabilized {element_css} in {url}")
   return browser.page_source
 
-def scroll_and_get_soup(url, browser, scroll_pause=2, element_css="body", scroll_btn_css=None):
-  content = scroll_with_selenium(url=url, browser=browser, scroll_pause=scroll_pause, element_css=element_css, scroll_btn_css=scroll_btn_css)
+def scroll_and_get_soup(*args, **kwargs):
+  content = scroll_with_selenium(*args, **kwargs)
   soup = BeautifulSoup(content, features="html.parser")
   return soup
