@@ -179,7 +179,7 @@ def build_get_url_backoffed(retry_on_404=False):
     return method(url=url,
                   headers=random.choice(header_choices),
                   follow_redirects=True,
-                  timeout=timeout)
+                  timeout=timeout, verify=False)
   # Apply tenacity retry for connection errors
   fn = retry(wait=wait_exponential(multiplier=1, min=4, max=60),
              stop=stop_after_attempt(5),
@@ -386,10 +386,15 @@ def scroll_with_selenium(
         except JavascriptException:
           new_text_len = None
 
-        logging.debug(f"Height: {last_height} -> {new_height}; TextLen: {last_text_len} -> {new_text_len}")
+        # logging.debug(f"Height: {last_height} -> {new_height}; TextLen: {last_text_len} -> {new_text_len}")
         page_id += 1
         pbar.set_postfix_str(f"Height: {new_height} TextLen: {new_text_len}")
         pbar.update(1)
+
+        if new_height == last_height and new_text_len == last_text_len:
+          logging.debug("No change detected in both metrics this iteration")
+          # allow loop to continue to accumulate stable counts; do not break immediately
+
 
         # Update stability counters for height
         if last_height is None or new_height is None:
@@ -416,10 +421,6 @@ def scroll_with_selenium(
           logging.info(f"Both height and text length stabilized (height stable {stable_count_height}, text stable {stable_count_text})")
           break
 
-        # Fallback: if neither metric changed at all this iteration, break to avoid infinite loop
-        if new_height == last_height and new_text_len == last_text_len:
-          logging.debug("No change detected in both metrics this iteration")
-          # allow loop to continue to accumulate stable counts; do not break immediately
 
       except NoSuchElementException:
         logging.warning(f"No such element found {element_css}")
