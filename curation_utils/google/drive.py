@@ -1,23 +1,34 @@
 import io
 import logging
 import os
-import time
-from functools import lru_cache
+import socket
 
 import socket
 
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient import discovery
-from googleapiclient.errors import HttpError
-from oauth2client.service_account import ServiceAccountCredentials
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
+# Force Python to use IPv4 socket connections only
+old_getaddrinfo = socket.getaddrinfo
+def new_getaddrinfo(*args, **kwargs):
+  responses = old_getaddrinfo(*args, **kwargs)
+  return [response for response in responses if response[0] == socket.AF_INET]
 
-# Set the default timeout to 10 minutes
-# https://github.com/googleapis/google-api-python-client/issues/632#issuecomment-541973021
+socket.getaddrinfo = new_getaddrinfo
+
+import time
+from functools import lru_cache
+
+# Catch both socket/OS timeout errors and HTTP error responses
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from oauth2client.service_account import ServiceAccountCredentials
+
+# Set the default socket timeout to 10 minutes
 socket.setdefaulttimeout(600)
 
-# Remove all handlers associated with the root logger object.
+# Remove existing handlers and set up logging
 for handler in logging.root.handlers[:]:
   logging.root.removeHandler(handler)
 logging.basicConfig(
@@ -35,15 +46,7 @@ def get_cached_client(google_key):
 class DriveClient(object):
   def __init__(self,
                google_key='/home/vvasuki/gitland/vvasuki-git/sysconf/kunchikA/google/proofing/service_account_key.json', folder_key='0B1_QBT-hoqqVa0xDRHFmM2EzWUk'):
-    """ Interact with Google Drive via this client.
-    
-    :param google_key: Path to a json file which can be obtained from https://console.cloud.google.com/apis/credentials - create oauth key for desktop app; download client secret. Enable drive api access.
-    Deprecated (Cant access user drive.) - https://console.cloud.google.com/iam-admin/serviceaccounts (create a project, generate a key via "Actions" column.). 
-      
-    :param folder_key - share a folder with the service account mail id, then copy it's key (xxxx) from the url - https://drive.google.com/drive/folders/XXXXXXXXXXXX  
-
-    """
-    # 'https://spreadsheets.google.com/feeds', 
+    """Interact with Google Drive via this client."""
     scopes = ['https://www.googleapis.com/auth/drive']
     if "service_account" in google_key:
       creds = ServiceAccountCredentials.from_json_keyfile_name(google_key, scopes)
@@ -57,66 +60,97 @@ class DriveClient(object):
         if creds and creds.expired and creds.refresh_token:
           creds.refresh(Request())
         else:
-          flow = InstalledAppFlow.from_client_secrets_file(
-            google_key, scopes)
+          flow = InstalledAppFlow.from_client_secrets_file(google_key, scopes)
           creds = flow.run_local_server(port=0)
         with open(token_file, 'w') as token:
           token.write(creds.to_json())
 
-    self.service = discovery.build('drive', 'v3', credentials=creds)
+    self.service = build('drive', 'v3', credentials=creds)
     self.folder_key = folder_key
 
+  def upload(self, local_file_path, mime='application/vnd.google-apps.document', max_retries=2):
+    """Uploads a file to Google Drive with retries covering network socket timeouts."""
+    logging.info(f"Uploading {local_file_path} to folder {self.folder_key}")
 
-  def upload(self, local_file_path, mime='application/vnd.google-apps.document', max_retries=4):
-    from googleapiclient.http import MediaFileUpload
-    logging.info(f"Uploading {local_file_path} to {self.folder_key}")
+    # Define retryable exceptions (Socket/OS level + Google HTTP level)
+    RETRYABLE_ERRORS = (HttpError, TimeoutError, OSError, socket.timeout)
+
     for attempt in range(1, max_retries + 1):
       try:
         logging.info("Attempt %d: Uploading %s", attempt, local_file_path)
-        result = self.service.files().create(
+
+        # Explicit 1MB chunk size prevents httplib2 from timing out on large payloads
+        media = MediaFileUpload(
+          local_file_path,
+          mimetype=mime,
+          resumable=True,
+          chunksize=1024 * 1024
+        )
+
+        request = self.service.files().create(
           body={
-            'name': local_file_path,
+            'name': os.path.basename(local_file_path),
             'mimeType': mime,
             'parents': [self.folder_key]
           },
-          media_body=MediaFileUpload(local_file_path, mimetype=mime, resumable=True),
+          media_body=media,
           supportsAllDrives=True
-        ).execute()
+        )
+
+        # num_retries parameter inside execute() enables internal exponential backoff
+        result = request.execute(num_retries=max_retries)
         logging.info("Upload succeeded on attempt %d", attempt)
         return result
-      except HttpError as e:
-        logging.warning("HttpError on attempt %d: %s", attempt, e)
+
+      except RETRYABLE_ERRORS as e:
+        wait_time = 2 ** attempt
+        logging.warning("Error on attempt %d (%s): %s. Retrying in %ds...", attempt, type(e).__name__, e, wait_time)
         if attempt == max_retries:
-          raise  # re‑raise after last attempt
-        # backoff before retrying
-        time.sleep(2 ** attempt)
+          raise
+        time.sleep(wait_time)
 
+  def download_text(self, local_file_path, file_id, mime_type="text/markdown", max_retries=5):
+    """Downloads exported text with chunk retry support."""
+    logging.info("Downloading file ID %s to %s", file_id, local_file_path)
 
-  def download_text(self, local_file_path, file_id, mime_type="text/markdown"):
-    # Alternates - "text/plain"
-    from googleapiclient.http import MediaIoBaseDownload
-    logging.info("Downloading %s", local_file_path)
-    dl = MediaIoBaseDownload(
-      io.FileIO(local_file_path, 'wb'),
-      self.service.files().export_media(fileId=file_id, mimeType=mime_type)
-    )
-    done = False
-    while done is False:
-      status, done = dl.next_chunk()
+    request = self.service.files().export_media(fileId=file_id, mimeType=mime_type)
+
+    with io.FileIO(local_file_path, 'wb') as fh:
+      downloader = MediaIoBaseDownload(fh, request)
+      done = False
+      while not done:
+        # Pass num_retries to handle intermittent transport drops during download
+        status, done = downloader.next_chunk(num_retries=max_retries)
+        if status:
+          logging.debug("Download %d%%.", int(status.progress() * 100))
+
     logging.info("Done downloading %s", local_file_path)
 
-  def delete_file(self, file_id):
-    logging.info("Deleting %s", str(file_id))
-    self.service.files().delete(fileId=file_id).execute()
+  def delete_file(self, file_id, max_retries=3):
+    logging.info("Deleting file ID %s", str(file_id))
+    for attempt in range(1, max_retries + 1):
+      try:
+        self.service.files().delete(fileId=file_id).execute(num_retries=max_retries)
+        return
+      except (HttpError, TimeoutError, OSError) as e:
+        if attempt == max_retries:
+          logging.error("Failed to delete remote file %s: %s", file_id, e)
+        time.sleep(2)
 
   def ocr_file(self, local_file_path, ocr_file_path=None):
-    if ocr_file_path == None:
+    if ocr_file_path is None:
       ocr_file_path = local_file_path + ".txt"
+
     if os.path.exists(ocr_file_path):
       logging.debug("Not OCRing: %s already exists", ocr_file_path)
-    else:
-      logging.info("OCRing %s to %s", local_file_path, ocr_file_path)
-      upload_result = self.upload(local_file_path=local_file_path)
-      uploaded_file_id = upload_result["id"]
+      return
+
+    logging.info("OCRing %s to %s", local_file_path, ocr_file_path)
+    upload_result = self.upload(local_file_path=local_file_path)
+    uploaded_file_id = upload_result["id"]
+
+    try:
       self.download_text(local_file_path=ocr_file_path, file_id=uploaded_file_id)
+    finally:
+      # Ensure file cleanup on drive even if download fails
       self.delete_file(file_id=uploaded_file_id)
