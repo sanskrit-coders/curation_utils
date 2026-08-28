@@ -131,9 +131,10 @@ class ArchiveItem(object):
         logging.warning("Found nothing to update!")
 
   def update_from_dir(self, file_patterns=["*"], dry_run=False, overwrite_all=False):
+    # Alternate glob file patterns - **/* for recursion.
     file_paths = []
     for file_pattern in file_patterns:
-      file_paths.extend([str(p) for p in Path(self.repo_base).glob("**/" + file_pattern)])
+      file_paths = [str(p) for p in Path(self.repo_base).glob(file_pattern)]
     self.update_with_files(file_paths=file_paths, overwrite_all=overwrite_all, dry_run=dry_run)
 
   def download_original_files(self, destination_dir, file_prefix="", skip_existing=True):
