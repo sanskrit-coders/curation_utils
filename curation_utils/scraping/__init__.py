@@ -94,27 +94,46 @@ def sleep_approx(duration, jitter=0):
   time.sleep(random.uniform(0, jitter))
 
 
+import shutil
+
+def find_chrome_binary():
+  """Dynamically search for installed Chrome or Chromium binaries on the system."""
+  for name in ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "chrome"]:
+    path = shutil.which(name)
+    if path:
+      return path
+  return None
+
+
 def get_selenium_chrome(headless=True):
-  from selenium import webdriver
-  from selenium.webdriver.chrome import options
-  options = options.Options()
+  import undetected_chromedriver as uc
+
+  options = uc.ChromeOptions()
   options.add_argument('--ignore-ssl-errors=yes')
   options.add_argument('--ignore-certificate-errors')
-  options.add_argument("--allow-running-insecure-content");
+  options.add_argument("--allow-running-insecure-content")
   options.set_capability('acceptInsecureCerts', True)
-  options.add_argument('--disable-web-security') # Can be useful in some cases
-  
-  options.headless = headless
+  options.add_argument('--disable-web-security')
+
   if headless:
-    options.add_argument("--headless")    
+    options.add_argument("--headless=new")
     options.add_argument("--disable-gpu")  # Applicable for Windows OS
     options.add_argument("--no-sandbox")
-  # options.add_argument('--remote-debugging-port=9222')
-  browser = webdriver.Chrome(options=options)
+
+
+  chrome_path = find_chrome_binary()
+  if not chrome_path:
+    raise FileNotFoundError("Could not find Google Chrome or Chromium executable on the system.")
+  
+  browser = uc.Chrome(
+    options=options,
+    headless=headless,
+    browser_executable_path=chrome_path,
+    version_main=151
+  )
+
   browser.set_page_load_timeout(1000)
   return browser
-
-
 
 def get_selenium_firefox(headless=True):
   from selenium import webdriver
@@ -299,10 +318,11 @@ def scroll_with_selenium(
     element_css="body",
     scroll_btn_css=None,
     stable_checks=3,
-    timeout=600
+    timeout=600,
+    headless=True,
 ):
   if browser is None:
-    browser = get_selenium_chrome()
+    browser = get_selenium_chrome(headless=headless)
   if url is not None:
     browser.get(url)
 
