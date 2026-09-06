@@ -173,7 +173,7 @@ def get_storage_name(text, source_script=None, max_length=50, maybe_use_dravidia
         text_optitrans = sanscript.SCHEMES[sanscript.IAST].mark_off_non_indic_in_line(text_optitrans)
       text_optitrans = sanscript.transliterate(text_optitrans, source_script, sanscript.OPTITRANS, suspend_on= set('<'), suspend_off = set('>'), maybe_use_dravidian_variant=maybe_use_dravidian_variant)
       if source_script in [sanscript.IAST]:
-        text_optitrans = regex.sub(r"\|", "/", text_optitrans)
+        text_optitrans = regex.sub(r"\|", "_", text_optitrans)
   else:
     if source_script == sanscript.TAMIL:
       from indic_transliteration import aksharamukha_helper
