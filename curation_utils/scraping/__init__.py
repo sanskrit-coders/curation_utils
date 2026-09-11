@@ -452,5 +452,7 @@ def scroll_with_selenium(
 
 def scroll_and_get_soup(*args, **kwargs):
   content = scroll_with_selenium(*args, **kwargs)
+  if content is None:
+    return None
   soup = BeautifulSoup(content, features="html.parser")
   return soup
