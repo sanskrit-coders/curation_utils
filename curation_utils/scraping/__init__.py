@@ -129,7 +129,7 @@ def get_selenium_chrome(headless=True):
     options=options,
     headless=headless,
     browser_executable_path=chrome_path,
-    version_main=151
+    version_main=156
   )
 
   browser.set_page_load_timeout(1000)
