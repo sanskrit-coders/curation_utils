@@ -1,6 +1,7 @@
 from urllib.parse import urlparse, urljoin
 
 import codecs
+import contextlib
 import logging
 import random
 import time
@@ -105,7 +106,52 @@ def find_chrome_binary():
   return None
 
 
-def get_selenium_chrome(headless=True):
+@contextlib.contextmanager
+def _chrome_launch_lock():
+  """Serialize driver download/patch across processes.
+
+  Concurrent first use otherwise corrupts the shared driver cache (parallel
+  workers killed each other's launches this way).
+  """
+  try:
+    import fcntl
+  except ImportError:  # No cross-process locks (e.g. Windows); proceed unlocked.
+    yield
+    return
+  import os
+  import tempfile
+  lock_path = os.path.join(tempfile.gettempdir(), "selenium_chrome_launch.lock")
+  with open(lock_path, "w") as handle:
+    fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+    try:
+      yield
+    finally:
+      fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def get_selenium_chrome(headless=True, undetected=True):
+  if not undetected:
+    # Plain selenium with an explicitly resolved binary: immune to PATH games
+    # (a shadowing google-chrome shim once paired the wrong browser with the
+    # driver) and to undetected_chromedriver's per-launch patch races.
+    from selenium import webdriver
+    options = webdriver.ChromeOptions()
+    if headless:
+      options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    binary = None
+    for name in ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "chrome"):
+      binary = shutil.which(name)
+      if binary:
+        break
+    if binary is None:
+      raise FileNotFoundError("Could not find Google Chrome or Chromium executable on the system.")
+    options.binary_location = binary
+    with _chrome_launch_lock():
+      browser = webdriver.Chrome(options=options)
+    browser.set_page_load_timeout(1000)
+    return browser
+
   import undetected_chromedriver as uc
 
   options = uc.ChromeOptions()
@@ -124,13 +170,14 @@ def get_selenium_chrome(headless=True):
   chrome_path = find_chrome_binary()
   if not chrome_path:
     raise FileNotFoundError("Could not find Google Chrome or Chromium executable on the system.")
-  
-  browser = uc.Chrome(
-    options=options,
-    headless=headless,
-    browser_executable_path=chrome_path,
-    version_main=156
-  )
+
+  with _chrome_launch_lock():
+    browser = uc.Chrome(
+      options=options,
+      headless=headless,
+      browser_executable_path=chrome_path,
+      version_main=156
+    )
 
   browser.set_page_load_timeout(1000)
   return browser
