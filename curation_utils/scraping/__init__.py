@@ -139,6 +139,8 @@ def get_selenium_firefox(headless=True):
   from selenium import webdriver
   from selenium.webdriver.firefox import options
   opts = options.Options()
+  if headless:
+    opts.add_argument("--headless")
   return webdriver.Firefox(options=opts)
 
 
