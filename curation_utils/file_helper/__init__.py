@@ -5,6 +5,7 @@ import os, tempfile
 import re
 import shutil
 import sys
+import unicodedata
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -93,7 +94,13 @@ def concatenate_files(input_path_list, output_path, add_newline_inbetween=False)
 
 
 def clean_file_path(file_path):
-  file_path_out = regex.sub("[^a-zA-Z0-9 _\\-~./]", "", file_path.strip())
+  # Map Unicode dashes to ASCII hyphen and fold Latin diacritics so ranges/names stay intact.
+  file_path_out = regex.sub(r"[–—−‑]", "-", file_path.strip())
+  file_path_out = file_path_out.replace("ß", "ss").replace("ẞ", "SS")
+  file_path_out = unicodedata.normalize("NFD", file_path_out)
+  file_path_out = regex.sub("[^a-zA-Z0-9 _\\-~./]", "", file_path_out)
+  # Strip boundary spaces exposed by removed symbols (e.g. "§ 1 Foo", "Foo?") without touching "_" like "_index".
+  file_path_out = regex.sub(r"(^|/) +| +($|/)", r"\1\2", file_path_out)
   # Handle avagrahas
   file_path_out = regex.sub(r"(\S)\.a", "\\1-", file_path_out)
   file_path_out = regex.sub(" +", "_", file_path_out)
@@ -182,8 +189,8 @@ def get_storage_name(text, source_script=None, max_length=50, maybe_use_dravidia
     text_optitrans = sanscript.transliterate(text_optitrans, source_script, sanscript.OPTITRANS, maybe_use_dravidian_variant=maybe_use_dravidian_variant)
   # text_optitrans = regex.sub("/", "_", text_optitrans)
   storage_name = clean_file_path(text_optitrans)
-  if max_length is not None:
-    storage_name = storage_name[:max_length]
+  if max_length is not None and len(storage_name) > max_length:
+    storage_name = storage_name[:max_length].rstrip("_-")
   return storage_name
 
 
